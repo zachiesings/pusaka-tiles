@@ -152,8 +152,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               // Mode selector
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
                   children: GameMode.values.map((m) {
                     final sel = _mode == m;
                     return Padding(

@@ -212,7 +212,7 @@ class TilesGameScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (e.gameOver)
+              if (e.gameOver || e.completed)
                 _GameOverOverlay(
                   score: gc.points,
                   best: best,
@@ -221,6 +221,7 @@ class TilesGameScreen extends StatelessWidget {
                   perfects: gc.perfectCount,
                   total: gc.totalTaps,
                   isNewBest: gc.isNewBest,
+                  won: gc.won,
                   onRevive: () => _revive(context, gc, app),
                   onRestart: () async {
                     await app.maybeShowInterstitial();
@@ -240,6 +241,7 @@ class _GameOverOverlay extends StatelessWidget {
   final int score, best, stars, perfects, total;
   final String grade;
   final bool isNewBest;
+  final bool won;
   final VoidCallback onRevive, onRestart, onHome;
   const _GameOverOverlay({
     required this.score,
@@ -249,6 +251,7 @@ class _GameOverOverlay extends StatelessWidget {
     required this.perfects,
     required this.total,
     required this.isNewBest,
+    required this.won,
     required this.onRevive,
     required this.onRestart,
     required this.onHome,
@@ -283,7 +286,12 @@ class _GameOverOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(isNewBest ? 'Rekor Baru! 🎉' : 'Yah, Meleset!',
+            Text(
+                won
+                    ? 'Lagu Selesai! 🎶'
+                    : isNewBest
+                        ? 'Rekor Baru! 🎉'
+                        : 'Yah, Meleset!',
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Palette.cream)),
             const SizedBox(height: 10),
             Row(
@@ -328,15 +336,17 @@ class _GameOverOverlay extends StatelessWidget {
                 style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Palette.gold)),
             Text('Terbaik: $best', style: const TextStyle(color: Palette.cream)),
             const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onRevive,
-                icon: const Icon(Icons.play_circle_fill),
-                label: const Text('Lanjut — Tonton Iklan'),
+            if (!won) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onRevive,
+                  icon: const Icon(Icons.play_circle_fill),
+                  label: const Text('Lanjut — Tonton Iklan'),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
             Row(children: [
               Expanded(
                 child: OutlinedButton(

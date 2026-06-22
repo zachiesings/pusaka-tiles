@@ -17,6 +17,7 @@ class TilesGameController extends ChangeNotifier {
   Ticker? _ticker;
   Duration _last = Duration.zero;
   bool isNewBest = false;
+  bool won = false;     // finished a "Lagu Penuh" song (win, not a loss)
   int starsEarned = 0;
   bool _scored = false;
   int flashLane = -1;   // lane to flash on a correct tap
@@ -43,10 +44,12 @@ class TilesGameController extends ChangeNotifier {
     final p = kModeParams[mode]!;
     engine = TilesEngine(
       song: song,
+      finite: p.finite,
       startSpeed: p.startSpeed,
       speedStep: p.speedStep,
       maxSpeed: p.maxSpeed,
     );
+    won = false;
     _last = Duration.zero;
     isNewBest = false;
     starsEarned = 0;
@@ -85,9 +88,13 @@ class TilesGameController extends ChangeNotifier {
     if (flashT > 0) flashT = (flashT - dt * 4).clamp(0.0, 1.0);
     if (feverTimeLeft > 0) feverTimeLeft = (feverTimeLeft - dt).clamp(0.0, 99.0);
     final wasOver = engine.gameOver;
+    final wasDone = engine.completed;
     engine.tick(dt.clamp(0.0, 0.05)); // clamp to avoid huge jumps after stalls
     if (engine.gameOver && !wasOver) {
       app.playWrong();
+      _finish();
+    } else if (engine.completed && !wasDone) {
+      won = true;
       _finish();
     }
     notifyListeners();
@@ -126,6 +133,10 @@ class TilesGameController extends ChangeNotifier {
       }
       app.playNote(note);
       if (app.haptics) HapticFeedback.selectionClick();
+      if (engine.completed) {
+        won = true;
+        _finish();
+      }
     } else {
       app.playWrong();
       if (app.haptics) HapticFeedback.mediumImpact();
