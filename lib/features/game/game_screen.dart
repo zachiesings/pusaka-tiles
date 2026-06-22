@@ -79,7 +79,9 @@ class TilesGameScreen extends StatelessWidget {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            CustomPaint(painter: TilesBoardPainter(engine: e)),
+                            CustomPaint(
+                                painter: TilesBoardPainter(
+                                    engine: e, flashLane: gc.flashLane, flashT: gc.flashT)),
                             Row(
                               children: List.generate(
                                 K.columns,
@@ -119,7 +121,10 @@ class TilesGameScreen extends StatelessWidget {
                   best: best,
                   isNewBest: gc.isNewBest,
                   onRevive: () => _revive(context, gc, app),
-                  onRestart: gc.restart,
+                  onRestart: () async {
+                    await app.maybeShowInterstitial();
+                    gc.restart();
+                  },
                   onHome: () => Navigator.of(context).maybePop(),
                 ),
             ],

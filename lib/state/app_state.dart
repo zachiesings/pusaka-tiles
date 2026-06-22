@@ -11,11 +11,18 @@ class AppState extends ChangeNotifier {
 
   bool _sound;
   bool _haptics;
+  int _overCount = 0;
 
   AppState(this._prefs, this.ads, this.audio)
       : _sound = _prefs.sound,
         _haptics = _prefs.haptics {
     audio.enabled = _sound;
+  }
+
+  /// Show an interstitial on roughly every 2nd game-over (called on restart).
+  Future<void> maybeShowInterstitial() async {
+    _overCount++;
+    if (_overCount % 2 == 0) await ads.maybeShowInterstitial();
   }
 
   bool get sound => _sound;

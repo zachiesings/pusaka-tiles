@@ -7,9 +7,12 @@ import 'batik.dart';
 /// sits at the bottom; active tiles scroll down and light up gold once tapped.
 class TilesBoardPainter extends CustomPainter {
   final TilesEngine engine;
-  final double repaint; // engine.scroll, drives shouldRepaint
+  final int flashLane;
+  final double flashT;
+  final double repaint; // drives shouldRepaint
 
-  TilesBoardPainter({required this.engine}) : repaint = engine.scroll;
+  TilesBoardPainter({required this.engine, this.flashLane = -1, this.flashT = 0})
+      : repaint = engine.scroll + flashT;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -27,6 +30,20 @@ class TilesBoardPainter extends CustomPainter {
       ..strokeWidth = 1;
     for (var c = 1; c < cols; c++) {
       canvas.drawLine(Offset(c * laneW, 0), Offset(c * laneW, size.height), divider);
+    }
+
+    // Tap flash: a gold glow rising from the bottom of the tapped lane.
+    if (flashLane >= 0 && flashT > 0) {
+      final x = flashLane * laneW;
+      canvas.drawRect(
+        Rect.fromLTWH(x, size.height - rowH * 1.4, laneW, rowH * 1.4),
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [Palette.gold.withOpacity(0.45 * flashT), Palette.gold.withOpacity(0)],
+          ).createShader(Rect.fromLTWH(x, size.height - rowH * 1.4, laneW, rowH * 1.4)),
+      );
     }
 
     // Hit line near the bottom.

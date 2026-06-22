@@ -16,6 +16,8 @@ class TilesGameController extends ChangeNotifier {
   Duration _last = Duration.zero;
   bool isNewBest = false;
   bool _scored = false;
+  int flashLane = -1;   // lane to flash on a correct tap
+  double flashT = 0;    // flash intensity, decays each frame
 
   TilesGameController(this.app, this.song) {
     _begin();
@@ -48,6 +50,7 @@ class TilesGameController extends ChangeNotifier {
     final dt = (elapsed - _last).inMicroseconds / 1e6;
     _last = elapsed;
     if (dt <= 0) return;
+    if (flashT > 0) flashT = (flashT - dt * 4).clamp(0.0, 1.0);
     final wasOver = engine.gameOver;
     engine.tick(dt.clamp(0.0, 0.05)); // clamp to avoid huge jumps after stalls
     if (engine.gameOver && !wasOver) {
@@ -61,6 +64,8 @@ class TilesGameController extends ChangeNotifier {
     if (engine.gameOver) return;
     final note = engine.tapColumn(col);
     if (note >= 0) {
+      flashLane = col;
+      flashT = 1.0;
       app.playNote(note);
       if (app.haptics) HapticFeedback.selectionClick();
     } else {
