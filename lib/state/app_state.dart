@@ -45,6 +45,7 @@ class AppState extends ChangeNotifier {
   bool get firstRun => _prefs.firstRun;
 
   int bestForSong(String id) => _prefs.songBest(id);
+  int bestStars(String id) => _prefs.songStars(id);
 
   /// Returns true if [score] beat the song's stored best.
   bool submitScore(String songId, int score) {
@@ -54,6 +55,13 @@ class AppState extends ChangeNotifier {
       return true;
     }
     return false;
+  }
+
+  void submitStars(String songId, int stars) {
+    if (stars > _prefs.songStars(songId)) {
+      _prefs.setSongStars(songId, stars);
+      notifyListeners();
+    }
   }
 
   void playNote(int index) {

@@ -11,6 +11,9 @@ class Prefs {
   int songBest(String songId) => _p.getInt(K.songBestKey(songId)) ?? 0;
   Future<void> setSongBest(String songId, int v) => _p.setInt(K.songBestKey(songId), v);
 
+  int songStars(String songId) => _p.getInt(K.songStarsKey(songId)) ?? 0;
+  Future<void> setSongStars(String songId, int v) => _p.setInt(K.songStarsKey(songId), v);
+
   bool get sound => _p.getBool(K.kSound) ?? true;
   Future<void> setSound(bool v) => _p.setBool(K.kSound, v);
 

@@ -28,12 +28,22 @@ class TilesEngine {
   bool started = false;
   bool gameOver = false;
   late double speed;      // beats per second
+  final double _step;
+  final double _maxSpeed;
   int _songPos = 0;
   double _cursor = 0;     // cumulative beat position for the next generated tile
 
-  TilesEngine({required this.song, this.columns = 4, int? seed})
-      : _rng = Random(seed) {
-    speed = K.startSpeed * song.speedScale;
+  TilesEngine({
+    required this.song,
+    this.columns = 4,
+    int? seed,
+    double? startSpeed,
+    double? speedStep,
+    double? maxSpeed,
+  })  : _rng = Random(seed),
+        _step = speedStep ?? K.speedStep,
+        _maxSpeed = maxSpeed ?? K.maxSpeed {
+    speed = (startSpeed ?? K.startSpeed) * song.speedScale;
     _ensureAhead(16);
   }
 
@@ -82,7 +92,7 @@ class TilesEngine {
       t.tapped = true;
       score++;
       nextTap++;
-      speed = min(K.maxSpeed, speed + K.speedStep);
+      speed = min(_maxSpeed, speed + _step);
       return t.noteIndex;
     }
     gameOver = true;

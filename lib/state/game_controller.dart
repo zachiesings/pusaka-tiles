@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import '../game/engine/tiles_engine.dart';
+import '../game/game_mode.dart';
 import '../game/models/song.dart';
 import 'app_state.dart';
 
@@ -10,23 +11,32 @@ import 'app_state.dart';
 class TilesGameController extends ChangeNotifier {
   final AppState app;
   final Song song;
+  final GameMode mode;
 
   late TilesEngine engine;
   Ticker? _ticker;
   Duration _last = Duration.zero;
   bool isNewBest = false;
+  int starsEarned = 0;
   bool _scored = false;
   int flashLane = -1;   // lane to flash on a correct tap
   double flashT = 0;    // flash intensity, decays each frame
 
-  TilesGameController(this.app, this.song) {
+  TilesGameController(this.app, this.song, {this.mode = GameMode.klasik}) {
     _begin();
   }
 
   void _begin() {
-    engine = TilesEngine(song: song);
+    final p = kModeParams[mode]!;
+    engine = TilesEngine(
+      song: song,
+      startSpeed: p.startSpeed,
+      speedStep: p.speedStep,
+      maxSpeed: p.maxSpeed,
+    );
     _last = Duration.zero;
     isNewBest = false;
+    starsEarned = 0;
     _scored = false;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
@@ -81,6 +91,15 @@ class TilesGameController extends ChangeNotifier {
     _scored = true;
     _ticker?.stop();
     isNewBest = app.submitScore(song.id, engine.score);
+    final len = song.length;
+    starsEarned = engine.score >= len * 3
+        ? 3
+        : engine.score >= len * 2
+            ? 2
+            : engine.score >= len
+                ? 1
+                : 0;
+    app.submitStars(song.id, starsEarned);
   }
 
   @override

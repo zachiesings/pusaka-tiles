@@ -134,6 +134,7 @@ class TilesGameScreen extends StatelessWidget {
                 _GameOverOverlay(
                   score: e.score,
                   best: best,
+                  stars: gc.starsEarned,
                   isNewBest: gc.isNewBest,
                   onRevive: () => _revive(context, gc, app),
                   onRestart: () async {
@@ -151,12 +152,13 @@ class TilesGameScreen extends StatelessWidget {
 }
 
 class _GameOverOverlay extends StatelessWidget {
-  final int score, best;
+  final int score, best, stars;
   final bool isNewBest;
   final VoidCallback onRevive, onRestart, onHome;
   const _GameOverOverlay({
     required this.score,
     required this.best,
+    required this.stars,
     required this.isNewBest,
     required this.onRevive,
     required this.onRestart,
@@ -181,7 +183,19 @@ class _GameOverOverlay extends StatelessWidget {
           children: [
             Text(isNewBest ? 'Rekor Baru! 🎉' : 'Yah, Meleset!',
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Palette.cream)),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                3,
+                (i) => Icon(
+                  i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
+                  size: 40,
+                  color: i < stars ? Palette.gold : Palette.gridLine,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             Text('$score',
                 style: const TextStyle(fontSize: 52, fontWeight: FontWeight.w900, color: Palette.gold)),
             Text('Terbaik: $best', style: const TextStyle(color: Palette.cream)),

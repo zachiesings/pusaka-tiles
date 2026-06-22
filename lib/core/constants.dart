@@ -25,6 +25,7 @@ class K {
   static const String kHaptics   = 'pt_haptics';
   static const String kFirstRun  = 'pt_first_run';
   static String songBestKey(String songId) => 'pt_best_$songId';
+  static String songStarsKey(String songId) => 'pt_stars_$songId';
 }
 
 /// Batik-inspired palette (shared with Pusaka Blast for brand consistency).

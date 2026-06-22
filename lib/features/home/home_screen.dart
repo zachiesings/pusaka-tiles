@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
+import '../../game/game_mode.dart';
 import '../../game/models/song.dart';
 import '../../game/songs.dart';
 import '../../state/app_state.dart';
@@ -20,6 +21,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  GameMode _mode = GameMode.klasik;
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider<TilesGameController>(
-          create: (_) => TilesGameController(app, song),
+          create: (_) => TilesGameController(app, song, mode: _mode),
           child: const TilesGameScreen(),
         ),
       ),
@@ -82,7 +85,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2, color: Palette.cream)),
               const Text('Ketuk ubin, mainkan lagu daerah',
                   style: TextStyle(color: Palette.goldSoft)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              // Mode selector
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: GameMode.values.map((m) {
+                    final sel = _mode == m;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _mode = m),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: sel ? Palette.gold : Palette.panel,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(kModeParams[m]!.label,
+                              style: TextStyle(
+                                  color: sel ? Palette.ink : Palette.cream,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 10),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
@@ -93,6 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     return _SongCard(
                       song: s,
                       best: app.bestForSong(s.id),
+                      stars: app.bestStars(s.id),
                       onTap: () => _play(context, s),
                     );
                   },
@@ -145,8 +177,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 class _SongCard extends StatelessWidget {
   final Song song;
   final int best;
+  final int stars;
   final VoidCallback onTap;
-  const _SongCard({required this.song, required this.best, required this.onTap});
+  const _SongCard({required this.song, required this.best, required this.stars, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +203,17 @@ class _SongCard extends StatelessWidget {
                         style: const TextStyle(
                             color: Palette.cream, fontSize: 17, fontWeight: FontWeight.w800)),
                     Text(song.daerah, style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: List.generate(
+                        3,
+                        (i) => Icon(
+                          i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
+                          size: 16,
+                          color: i < stars ? Palette.gold : Palette.gridLine,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
