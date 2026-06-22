@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
@@ -177,15 +178,37 @@ class TilesGameScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+              // Fever: pulsing pink edge-glow vignette around the whole screen
               if (gc.feverActive && !e.gameOver)
-                const IgnorePointer(
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment.center,
+                        radius: 1.0,
+                        colors: [
+                          Colors.transparent,
+                          Palette.pink.withOpacity(
+                              0.16 + 0.12 * (0.5 + 0.5 * math.sin(gc.feverTimeLeft * 6))),
+                        ],
+                        stops: const [0.62, 1.0],
+                      ),
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              if (gc.feverActive && !e.gameOver)
+                IgnorePointer(
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Padding(
-                      padding: EdgeInsets.only(top: 70),
-                      child: Text('🔥 FEVER ×2',
-                          style: TextStyle(
-                              color: Palette.pink, fontSize: 16, fontWeight: FontWeight.w900)),
+                      padding: const EdgeInsets.only(top: 70),
+                      child: Transform.scale(
+                        scale: 1 + 0.08 * (0.5 + 0.5 * math.sin(gc.feverTimeLeft * 8)),
+                        child: const Text('🔥 FEVER ×2',
+                            style: TextStyle(
+                                color: Palette.pink, fontSize: 18, fontWeight: FontWeight.w900)),
+                      ),
                     ),
                   ),
                 ),
