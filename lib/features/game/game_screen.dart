@@ -174,9 +174,14 @@ class _GameOverOverlay extends StatelessWidget {
         margin: const EdgeInsets.all(28),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Palette.bg1,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Palette.gold.withOpacity(0.4), width: 1.5),
+          gradient: const LinearGradient(
+            colors: [Palette.panel, Palette.bg1],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Palette.violet.withOpacity(0.5), width: 1.5),
+          boxShadow: Palette.glow(stars >= 2 ? Palette.gold : Palette.violet, blur: 40, a: 0.4),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

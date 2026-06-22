@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/mascot.dart';
+import '../../widgets/soft_card.dart';
 import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -49,12 +50,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 children: [
                   const MascotView(size: 150, mood: MascotMood.happy),
                   const SizedBox(height: 14),
-                  const Text('PUSAKA TILES',
-                      style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 2,
-                          color: Palette.cream)),
+                  const GoldTitle('PUSAKA TILES', size: 28, letterSpacing: 2),
                 ],
               ),
             ),
