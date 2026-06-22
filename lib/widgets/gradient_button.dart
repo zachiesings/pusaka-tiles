@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/constants.dart';
 
 /// Premium CTA — cool gradient fill, violet glow, springy press.
@@ -36,6 +37,8 @@ class _GradientButtonState extends State<GradientButton> {
       onTapCancel: () => setState(() => _down = false),
       onTapUp: (_) {
         setState(() => _down = false);
+        HapticFeedback.lightImpact();
+        SystemSound.play(SystemSoundType.click);
         widget.onTap();
       },
       child: AnimatedScale(
