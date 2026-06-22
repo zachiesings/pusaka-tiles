@@ -28,26 +28,43 @@ class K {
   static String songStarsKey(String songId) => 'pt_stars_$songId';
 }
 
-/// Batik-inspired palette (shared with Pusaka Blast for brand consistency).
+/// === "PANGGUNG MALAM" — cool indigo-night stage identity (distinct from Blast) ===
 class Palette {
   Palette._();
 
-  static const Color bg0      = Color(0xFF15110A);
-  static const Color bg1      = Color(0xFF241B10);
-  static const Color panel    = Color(0xFF2E2316);
-  static const Color gridCell = Color(0xFF3A2D1C);
-  static const Color gridLine = Color(0xFF4A3A24);
+  static const Color bg0      = Color(0xFF0B0918); // deep indigo-black night
+  static const Color bg1      = Color(0xFF161236); // wedelan indigo
+  static const Color panel    = Color(0xFF241C4E); // indigo surface
+  static const Color panelHi  = Color(0xFF2E2360);
+  static const Color gridCell = Color(0xFF181340); // empty lane
+  static const Color gridLine = Color(0xFF332A66);
 
-  static const Color gold     = Color(0xFFE3B23C);
+  static const Color gold     = Color(0xFFF2B73C); // prada gold ornament
+  static const Color goldLt   = Color(0xFFFCD675);
   static const Color goldSoft = Color(0xFFC8923A);
-  static const Color cream    = Color(0xFFF3E5C8);
-  static const Color ink      = Color(0xFF1B130A);
+  static const Color cream    = Color(0xFFF2EEFA); // cool ivory
+  static const Color ink      = Color(0xFF0B0918);
 
-  // Lane / active-tile colors (batik tones), one per lane for variety.
+  // cool accents
+  static const Color indigo   = Color(0xFF5B4BC4); // wedelan
+  static const Color violet   = Color(0xFF7E55C6);
+  static const Color teal     = Color(0xFF2FA987); // gamelan jade
+  static const Color pink     = Color(0xFFE76A93);
+  static const Color cyan     = Color(0xFF45C6D4);
+
+  static const LinearGradient brand = LinearGradient(
+    colors: [violet, indigo, teal],
+    begin: Alignment.topLeft, end: Alignment.bottomRight,
+  );
+
+  static List<BoxShadow> glow(Color c, {double blur = 26, double y = 10, double a = 0.5}) =>
+      [BoxShadow(color: c.withOpacity(a), blurRadius: blur, offset: Offset(0, y))];
+
+  // Lane / active-tile colors — cool, luminous, distinct from Blast's warm set.
   static const List<Color> laneColors = <Color>[
-    Color(0xFF7A3B2E),
-    Color(0xFF1F4E5F),
-    Color(0xFFB5832E),
-    Color(0xFF4A6B3A),
+    Color(0xFF5B4BC4), // indigo
+    Color(0xFF2FA987), // jade
+    Color(0xFFE76A93), // pink
+    Color(0xFF45C6D4), // cyan
   ];
 }

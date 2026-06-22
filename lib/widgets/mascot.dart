@@ -75,8 +75,8 @@ class _MascotPainter extends CustomPainter {
   _MascotPainter({required this.mood, required this.breath, required this.blink, required this.react});
 
   static const _skin = Color(0xFFE9C9A0);
-  static const _blangkon = Color(0xFF3A2A1A);
-  static const _batik = Color(0xFF7A3B2E);
+  static const _blangkon = Color(0xFF241C4E); // indigo cap (cool identity)
+  static const _batik = Color(0xFF5B4BC4); // wedelan indigo sarong
 
   @override
   void paint(Canvas canvas, Size size) {
