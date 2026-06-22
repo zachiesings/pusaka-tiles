@@ -8,6 +8,7 @@ import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/banner_ad.dart';
+import '../../widgets/gradient_button.dart';
 import '../../widgets/mascot.dart';
 import '../../widgets/soft_card.dart';
 import '../game/game_screen.dart';
@@ -30,8 +31,63 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<AppState>().startHomeMusic();
+      if (!mounted) return;
+      context.read<AppState>().startHomeMusic();
+      _maybeShowTutorial();
     });
+  }
+
+  void _maybeShowTutorial() {
+    final app = context.read<AppState>();
+    if (!app.firstRun) return;
+    app.markOnboarded();
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.75),
+      builder: (_) {
+        Widget step(IconData ic, String t) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(children: [
+                Icon(ic, color: Palette.gold, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(t,
+                        style: const TextStyle(color: Palette.cream, height: 1.3))),
+              ]),
+            );
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [Palette.panel, Palette.bg1],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Palette.violet.withOpacity(0.5), width: 1.5),
+              boxShadow: Palette.glow(Palette.violet, blur: 40, a: 0.4),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const GoldTitle('Cara Bermain', size: 24),
+              const SizedBox(height: 12),
+              step(Icons.touch_app_rounded, 'Ketuk ubin berwarna di lajurnya, dari bawah ke atas.'),
+              step(Icons.timer_rounded, 'Ketuk pas di garis untuk PERFECT — poin lebih besar.'),
+              step(Icons.local_fire_department_rounded, 'Rangkai combo untuk masuk mode FEVER (×2).'),
+              step(Icons.music_note_rounded, 'Ganti instrumen tradisional di Pengaturan.'),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: GradientButton(
+                    label: 'Mengerti!',
+                    height: 52,
+                    onTap: () => Navigator.of(context).pop()),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
   }
 
   @override
