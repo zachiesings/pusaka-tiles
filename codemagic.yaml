@@ -1,0 +1,85 @@
+# Codemagic CI/CD — build Pusaka Tiles for iOS in the cloud (no Mac needed).
+# Mirrors the Pusaka Blast / Beat Nusantara pipeline. The repo tracks only
+# lib/ + assets/; native folders are regenerated via `flutter create`.
+#
+# Required env vars / secrets (set in Codemagic UI or trigger payload):
+#   APP_STORE_CONNECT_PRIVATE_KEY, APP_STORE_CONNECT_KEY_IDENTIFIER,
+#   APP_STORE_CONNECT_ISSUER_ID, CERTIFICATE_PRIVATE_KEY
+
+workflows:
+  ios-appstore:
+    name: Pusaka Tiles iOS — TestFlight & App Store
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "id.pusakatiles.pusakatiles"
+
+    scripts:
+      - name: Initialize keychain
+        script: keychain initialize
+
+      - name: Generate platform folders
+        script: |
+          flutter create --org id.pusakatiles --project-name pusaka_tiles \
+            --platforms=android,ios .
+
+      - name: Force deterministic bundle id
+        script: |
+          find ios -name project.pbxproj -exec \
+            sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" {} +
+
+      - name: Configure AdMob (iOS) — GADApplicationIdentifier (TEST id)
+        script: |
+          /usr/libexec/PlistBuddy -c "Add :GADApplicationIdentifier string ca-app-pub-3940256099942544~1458002511" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-3940256099942544~1458002511" ios/Runner/Info.plist
+
+      - name: Flutter packages
+        script: flutter pub get
+
+      - name: Generate launcher icons
+        script: dart run flutter_launcher_icons || true
+
+      - name: Fetch signing files (App Store Connect API key)
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+
+      - name: Add signing certificate to keychain
+        script: keychain add-certificates
+
+      - name: Set up provisioning profiles
+        script: xcode-project use-profiles
+
+      - name: Install CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \; || true
+
+      - name: Build IPA (release)
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - asd95179517@gmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
