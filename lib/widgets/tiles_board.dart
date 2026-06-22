@@ -20,6 +20,9 @@ class TilesBoardPainter extends CustomPainter {
     final cols = engine.columns;
     final laneW = size.width / cols;
     final pxPerBeat = size.height / K.visibleRows;
+    // Hit line sits high (80% down) so the first tile appears clearly ON the
+    // line with runway below — not crammed at the very bottom edge.
+    final hitY = size.height * 0.80;
 
     // Lane backgrounds + dividers
     for (var c = 0; c < cols; c++) {
@@ -31,10 +34,10 @@ class TilesBoardPainter extends CustomPainter {
       canvas.drawLine(Offset(c * laneW, 0), Offset(c * laneW, size.height), divider);
     }
 
-    // Tap flash glow + spark burst rising from the tapped lane
+    // Tap flash glow + spark burst at the tapped lane's hit zone
     if (flashLane >= 0 && flashT > 0) {
       final x = flashLane * laneW;
-      final r = Rect.fromLTWH(x, size.height - pxPerBeat * 1.4, laneW, pxPerBeat * 1.4);
+      final r = Rect.fromLTWH(x, hitY - pxPerBeat * 1.2, laneW, pxPerBeat * 1.6);
       canvas.drawRect(
         r,
         Paint()
@@ -46,7 +49,7 @@ class TilesBoardPainter extends CustomPainter {
       );
       // sparks flying up & out (deterministic from flashT — no per-particle state)
       final cxp = x + laneW / 2;
-      final baseY = size.height - pxPerBeat;
+      final baseY = hitY;
       final spark = Paint()..color = Palette.cream.withOpacity(flashT);
       for (var i = 0; i < 7; i++) {
         final ang = -math.pi / 2 + (i - 3) * 0.32;
@@ -57,19 +60,25 @@ class TilesBoardPainter extends CustomPainter {
       }
     }
 
-    // Hit line near the bottom (1 beat up)
-    final hitY = size.height - pxPerBeat;
+    // Glowing hit line
     canvas.drawLine(Offset(0, hitY), Offset(size.width, hitY),
-        Paint()..color = Palette.gold.withOpacity(0.35)..strokeWidth = 2);
+        Paint()
+          ..color = Palette.gold.withOpacity(0.6)
+          ..strokeWidth = 2.5
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+    canvas.drawLine(Offset(0, hitY), Offset(size.width, hitY),
+        Paint()..color = Palette.goldLt..strokeWidth = 1.4);
 
-    // Visible tiles (rows are sorted by startBeat)
+    // Visible tiles (rows sorted by startBeat). A tile's bottom edge reaches the
+    // hit line exactly when scroll == its startBeat.
     final start = engine.nextTap - 4 < 0 ? 0 : engine.nextTap - 4;
     for (var i = start; i < engine.rows.length; i++) {
       final t = engine.rows[i];
-      final top = size.height - (t.startBeat + t.beats - engine.scroll) * pxPerBeat;
       final h = t.beats * pxPerBeat;
-      if (top > size.height) break;      // this and all later tiles are below
-      if (top + h < 0) continue;          // already scrolled off the top
+      final bottom = hitY + (engine.scroll - t.startBeat) * pxPerBeat;
+      final top = bottom - h;
+      if (bottom < 0) break;             // fully above the screen (so are later tiles)
+      if (top > size.height) continue;   // below the visible area
       final rect = Rect.fromLTWH(t.activeColumn * laneW, top, laneW, h);
       final color = Palette.laneColors[t.activeColumn % Palette.laneColors.length];
       BatikTile.paint(canvas, rect, color);
