@@ -49,9 +49,9 @@ class TilesEngine {
 
   void _genRow() {
     final col = _rng.nextInt(columns);
-    final i = _songPos % song.notes.length;
-    final note = song.notes[i];
-    final beats = song.beats[i];
+    final note = song.notes[_songPos % song.notes.length];
+    // tolerate beats/notes length mismatch (never crash on data entry)
+    final beats = song.beats[_songPos % song.beats.length];
     rows.add(TileRow(col, note, beats, _cursor));
     _cursor += beats;
     _songPos++;
