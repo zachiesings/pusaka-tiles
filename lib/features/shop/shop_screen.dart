@@ -34,6 +34,38 @@ class ShopScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: GestureDetector(
+                  onTap: () async {
+                    final ok = await app.rewardedCoins();
+                    if (ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('+50 koin! 🎉')),
+                      );
+                    }
+                  },
+                  child: SoftCard(
+                    glow: Palette.gold,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.smart_display_rounded, color: Palette.gold, size: 28),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Text('Koin Gratis',
+                              style: TextStyle(
+                                  color: Palette.cream, fontSize: 16, fontWeight: FontWeight.w800)),
+                        ),
+                        Row(children: const [
+                          Icon(Icons.add, color: Palette.gold, size: 16),
+                          Text('50 ', style: TextStyle(color: Palette.gold, fontWeight: FontWeight.w900)),
+                          Icon(Icons.monetization_on, color: Palette.gold, size: 16),
+                        ]),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               ...TileThemeCatalog.all.map((t) {
                 final unlocked = app.isThemeUnlocked(t.id);
                 final equipped = app.selectedTheme == t.id;

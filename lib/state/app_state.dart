@@ -41,6 +41,13 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Watch a rewarded ad for +50 coins. Returns true if granted.
+  Future<bool> rewardedCoins() async {
+    final ok = await ads.showRewarded(RewardKind.bonusCoins);
+    if (ok) addCoins(50);
+    return ok;
+  }
+
   String get selectedTheme => _selectedTheme;
   bool isThemeUnlocked(String id) => _unlockedThemes.contains(id);
 
