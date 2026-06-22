@@ -21,6 +21,7 @@ class K {
   // ----- Persistence keys -----
   static const String kHighScore = 'pt_high_score';   // legacy global best
   static const String kSound     = 'pt_sound';
+  static const String kMusic     = 'pt_music';
   static const String kHaptics   = 'pt_haptics';
   static const String kFirstRun  = 'pt_first_run';
   static String songBestKey(String songId) => 'pt_best_$songId';

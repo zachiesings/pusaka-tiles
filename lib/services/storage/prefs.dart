@@ -14,6 +14,9 @@ class Prefs {
   bool get sound => _p.getBool(K.kSound) ?? true;
   Future<void> setSound(bool v) => _p.setBool(K.kSound, v);
 
+  bool get music => _p.getBool(K.kMusic) ?? true;
+  Future<void> setMusic(bool v) => _p.setBool(K.kMusic, v);
+
   bool get haptics => _p.getBool(K.kHaptics) ?? true;
   Future<void> setHaptics(bool v) => _p.setBool(K.kHaptics, v);
 

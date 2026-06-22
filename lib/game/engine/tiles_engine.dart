@@ -2,42 +2,49 @@ import 'dart:math';
 import '../../core/constants.dart';
 import '../models/song.dart';
 
-/// One scrolling row: exactly one lane holds the active (tappable) tile, which
-/// plays [noteIndex] from the song when tapped.
+/// One scrolling tile. Occupies the beat-span [startBeat, startBeat+beats] in a
+/// single lane; taller tiles = longer notes → the melody plays in real rhythm.
 class TileRow {
   final int activeColumn;
   final int noteIndex;
+  final double beats;     // duration in beats (tile height)
+  final double startBeat; // cumulative position from the start of the run
   bool tapped;
-  TileRow(this.activeColumn, this.noteIndex) : tapped = false;
+  TileRow(this.activeColumn, this.noteIndex, this.beats, this.startBeat)
+      : tapped = false;
 }
 
-/// Pure game logic for the falling-tiles board. Time is driven externally via
-/// [tick]; rendering reads [rows] + [scroll]. No Flutter dependency.
+/// Pure beat-based game logic. Time (driven via [tick]) advances [scroll] in
+/// beats; rendering reads tiles by their beat span. No Flutter dependency.
 class TilesEngine {
   final int columns;
   final Song song;
   final Random _rng;
 
-  final List<TileRow> rows = <TileRow>[]; // absolute index == row number
-  double scroll = 0;   // rows scrolled past the bottom line (grows over time)
-  int nextTap = 0;     // absolute index of the lowest un-tapped row
+  final List<TileRow> rows = <TileRow>[];
+  double scroll = 0;      // beats scrolled past the hit line
+  int nextTap = 0;        // index of the lowest un-tapped tile
   int score = 0;
-  bool started = false; // becomes true on the first tap (grace before moving)
+  bool started = false;
   bool gameOver = false;
-  late double speed;   // rows per second
+  late double speed;      // beats per second
   int _songPos = 0;
+  double _cursor = 0;     // cumulative beat position for the next generated tile
 
   TilesEngine({required this.song, this.columns = 4, int? seed})
       : _rng = Random(seed) {
     speed = K.startSpeed * song.speedScale;
-    _ensureAhead(12);
+    _ensureAhead(16);
   }
 
   void _genRow() {
     final col = _rng.nextInt(columns);
-    final note = song.notes[_songPos % song.notes.length];
+    final i = _songPos % song.notes.length;
+    final note = song.notes[i];
+    final beats = song.beats[i];
+    rows.add(TileRow(col, note, beats, _cursor));
+    _cursor += beats;
     _songPos++;
-    rows.add(TileRow(col, note));
   }
 
   void _ensureAhead(int n) {
@@ -46,40 +53,37 @@ class TilesEngine {
     }
   }
 
-  /// Advance time by [dt] seconds. Tiles only move once the player has made the
-  /// first tap, so the board waits politely at the start.
   void tick(double dt) {
     if (gameOver || !started) return;
     scroll += speed * dt;
-    _ensureAhead(12);
-    // Miss: the next tile fully scrolled past the bottom line.
-    if (scroll - nextTap > 1.0) {
+    _ensureAhead(16);
+    final t = rows[nextTap];
+    // Miss: the next tile's far (top) edge scrolled fully past the hit line.
+    if (scroll > t.startBeat + t.beats) {
       gameOver = true;
     }
   }
 
-  /// Ad-rewarded revive: clear the game-over, drop the next tile back to the
-  /// bottom line and wait for the player's tap. Score is kept.
+  /// Ad-rewarded revive: clear the loss, drop the next tile back to the line.
   void revive() {
     gameOver = false;
     started = false;
-    scroll = nextTap.toDouble();
-    _ensureAhead(12);
+    scroll = rows[nextTap].startBeat;
+    _ensureAhead(16);
   }
 
-  /// Tap [col]. Returns the note index to play on success, or -1 on a wrong tap
-  /// (which ends the game).
+  /// Tap [col]. Returns the note index to play on success, or -1 on a wrong tap.
   int tapColumn(int col) {
     if (gameOver) return -1;
-    _ensureAhead(4);
-    final row = rows[nextTap];
-    if (col == row.activeColumn) {
+    _ensureAhead(6);
+    final t = rows[nextTap];
+    if (col == t.activeColumn) {
       started = true;
-      row.tapped = true;
+      t.tapped = true;
       score++;
       nextTap++;
       speed = min(K.maxSpeed, speed + K.speedStep);
-      return row.noteIndex;
+      return t.noteIndex;
     }
     gameOver = true;
     return -1;

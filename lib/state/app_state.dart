@@ -10,14 +10,29 @@ class AppState extends ChangeNotifier {
   final AudioService audio;
 
   bool _sound;
+  bool _music;
   bool _haptics;
   int _overCount = 0;
 
   AppState(this._prefs, this.ads, this.audio)
       : _sound = _prefs.sound,
+        _music = _prefs.music,
         _haptics = _prefs.haptics {
     audio.enabled = _sound;
+    audio.musicEnabled = _music;
   }
+
+  bool get music => _music;
+  void setMusic(bool v) {
+    _music = v;
+    audio.setMusicEnabled(v);
+    if (v) audio.startBgm();
+    _prefs.setMusic(v);
+    notifyListeners();
+  }
+
+  void startHomeMusic() => audio.startBgm();
+  void stopHomeMusic() => audio.stopBgm();
 
   /// Show an interstitial on roughly every 2nd game-over (called on restart).
   Future<void> maybeShowInterstitial() async {

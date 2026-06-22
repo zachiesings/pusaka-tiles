@@ -11,12 +11,43 @@ import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
 import '../about/about_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  void _play(BuildContext context, Song song) {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<AppState>().startHomeMusic();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     final app = context.read<AppState>();
-    Navigator.of(context).push(
+    if (state == AppLifecycleState.resumed) {
+      app.startHomeMusic();
+    } else if (state == AppLifecycleState.paused) {
+      app.stopHomeMusic();
+    }
+  }
+
+  Future<void> _play(BuildContext context, Song song) async {
+    final app = context.read<AppState>();
+    app.stopHomeMusic();
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider<TilesGameController>(
           create: (_) => TilesGameController(app, song),
@@ -24,6 +55,7 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+    app.startHomeMusic(); // resume on return to home
   }
 
   @override
@@ -34,7 +66,14 @@ class HomeScreen extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: () => app.setMusic(!app.music),
+                  icon: Icon(app.music ? Icons.music_note : Icons.music_off,
+                      color: app.music ? Palette.gold : Palette.goldSoft),
+                ),
+              ),
               Container(
                 width: 92,
                 height: 92,

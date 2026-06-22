@@ -7,11 +7,39 @@ class AudioService {
   int _next = 0;
   bool enabled = true;
 
+  final AudioPlayer _bgm = AudioPlayer();
+  bool musicEnabled = true;
+  bool _bgmPlaying = false;
+
   AudioService({int voices = 5}) : _pool = List.generate(voices, (_) => AudioPlayer()) {
     for (final p in _pool) {
       p.setReleaseMode(ReleaseMode.stop);
       p.setPlayerMode(PlayerMode.lowLatency);
     }
+    _bgm.setReleaseMode(ReleaseMode.loop);
+  }
+
+  /// Start the looping home background music (gamelan). No-op if music is off.
+  Future<void> startBgm() async {
+    if (!musicEnabled || _bgmPlaying) return;
+    _bgmPlaying = true;
+    try {
+      await _bgm.play(AssetSource('audio/bgm_home.wav'), volume: 0.55);
+    } catch (_) {
+      _bgmPlaying = false;
+    }
+  }
+
+  Future<void> stopBgm() async {
+    _bgmPlaying = false;
+    try {
+      await _bgm.stop();
+    } catch (_) {}
+  }
+
+  void setMusicEnabled(bool v) {
+    musicEnabled = v;
+    if (!v) stopBgm();
   }
 
   Future<void> _play(String asset, {double volume = 0.9}) async {
@@ -39,5 +67,6 @@ class AudioService {
     for (final p in _pool) {
       p.dispose();
     }
+    _bgm.dispose();
   }
 }
