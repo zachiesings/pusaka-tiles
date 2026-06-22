@@ -8,6 +8,8 @@ import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/banner_ad.dart';
+import '../../game/tile_themes.dart';
+import '../shop/shop_screen.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/home_decor.dart';
 import '../../widgets/mascot.dart';
@@ -222,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       song: s,
                       best: app.bestForSong(s.id),
                       stars: app.bestStars(s.id),
-                      accent: Palette.laneColors[i % Palette.laneColors.length],
+                      accent: TileTheme.active[i % TileTheme.active.length],
                       onTap: () => _play(context, s),
                     );
                   },
@@ -230,17 +232,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AchievementsScreen())),
-                  icon: const Icon(Icons.emoji_events),
-                  label: const Text('Pencapaian'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Palette.gold,
-                    side: const BorderSide(color: Palette.gold),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    minimumSize: const Size(double.infinity, 0),
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ShopScreen())),
+                        icon: const Icon(Icons.palette),
+                        label: const Text('Toko Tema'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Palette.gold,
+                          side: const BorderSide(color: Palette.gold),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AchievementsScreen())),
+                        icon: const Icon(Icons.emoji_events),
+                        label: const Text('Pencapaian'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Palette.gold,
+                          side: const BorderSide(color: Palette.gold),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Padding(

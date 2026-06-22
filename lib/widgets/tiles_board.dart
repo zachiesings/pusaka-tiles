@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import '../game/engine/tiles_engine.dart';
+import '../game/tile_themes.dart';
 import 'batik.dart';
 
 /// Paints the 4-lane falling-tiles board. Tiles are positioned + sized by their
@@ -80,7 +81,8 @@ class TilesBoardPainter extends CustomPainter {
       if (bottom < 0) break;             // fully above the screen (so are later tiles)
       if (top > size.height) continue;   // below the visible area
       final rect = Rect.fromLTWH(t.activeColumn * laneW, top, laneW, h);
-      final color = Palette.laneColors[t.activeColumn % Palette.laneColors.length];
+      final lane = TileTheme.active;
+      final color = lane[t.activeColumn % lane.length];
       BatikTile.paint(canvas, rect, color);
       if (t.tapped) {
         canvas.drawRRect(

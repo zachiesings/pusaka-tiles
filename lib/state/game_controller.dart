@@ -149,6 +149,7 @@ class TilesGameController extends ChangeNotifier {
                 : 0;
     app.submitStars(song.id, starsEarned);
     app.submitBestCombo(bestCombo);
+    app.addCoins(points ~/ 50); // earn coins to spend on tile themes
     final acc = totalTaps == 0 ? 0.0 : perfectCount / totalTaps;
     grade = acc >= 0.92
         ? 'S'

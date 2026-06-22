@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../game/songs.dart';
+import '../game/tile_themes.dart';
 import '../services/storage/prefs.dart';
 import '../services/ads/ads_service.dart';
 import '../services/audio/audio_service.dart';
@@ -14,14 +15,52 @@ class AppState extends ChangeNotifier {
   bool _music;
   bool _haptics;
   int _overCount = 0;
+  int _coins;
+  late Set<String> _unlockedThemes;
+  late String _selectedTheme;
 
   AppState(this._prefs, this.ads, this.audio)
       : _sound = _prefs.sound,
         _music = _prefs.music,
+        _coins = _prefs.coins,
         _haptics = _prefs.haptics {
     audio.enabled = _sound;
     audio.musicEnabled = _music;
     audio.instrument = _prefs.instrument;
+    _unlockedThemes = _prefs.unlockedThemes.toSet()..add('klasik');
+    _selectedTheme = _prefs.selectedTheme;
+    TileTheme.active = TileThemeCatalog.byId(_selectedTheme).colors;
+  }
+
+  // ----- Coins & tile themes -----
+  int get coins => _coins;
+  void addCoins(int n) {
+    if (n <= 0) return;
+    _coins += n;
+    _prefs.setCoins(_coins);
+    notifyListeners();
+  }
+
+  String get selectedTheme => _selectedTheme;
+  bool isThemeUnlocked(String id) => _unlockedThemes.contains(id);
+
+  bool buyTheme(TileTheme t) {
+    if (_unlockedThemes.contains(t.id)) return false;
+    if (_coins < t.cost) return false;
+    _coins -= t.cost;
+    _prefs.setCoins(_coins);
+    _unlockedThemes.add(t.id);
+    _prefs.setUnlockedThemes(_unlockedThemes.toList());
+    selectTheme(t.id);
+    return true;
+  }
+
+  void selectTheme(String id) {
+    if (!_unlockedThemes.contains(id)) return;
+    _selectedTheme = id;
+    _prefs.setSelectedTheme(id);
+    TileTheme.active = TileThemeCatalog.byId(id).colors;
+    notifyListeners();
   }
 
   String get instrument => audio.instrument;

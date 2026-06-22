@@ -24,6 +24,9 @@ class K {
   static const String kMusic     = 'pt_music';
   static const String kInstrument = 'pt_instrument';
   static const String kBestCombo  = 'pt_best_combo';
+  static const String kCoins      = 'pt_coins';
+  static const String kThemes     = 'pt_themes';
+  static const String kTheme      = 'pt_theme';
 
   /// Selectable traditional instrument voices (folder id -> display label).
   static const List<MapEntry<String, String>> instruments = [

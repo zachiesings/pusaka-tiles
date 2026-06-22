@@ -31,4 +31,13 @@ class Prefs {
 
   bool get firstRun => _p.getBool(K.kFirstRun) ?? true;
   Future<void> setFirstRunDone() => _p.setBool(K.kFirstRun, false);
+
+  int get coins => _p.getInt(K.kCoins) ?? 0;
+  Future<void> setCoins(int v) => _p.setInt(K.kCoins, v);
+
+  List<String> get unlockedThemes => _p.getStringList(K.kThemes) ?? const ['klasik'];
+  Future<void> setUnlockedThemes(List<String> v) => _p.setStringList(K.kThemes, v);
+
+  String get selectedTheme => _p.getString(K.kTheme) ?? 'klasik';
+  Future<void> setSelectedTheme(String v) => _p.setString(K.kTheme, v);
 }
