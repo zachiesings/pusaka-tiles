@@ -204,6 +204,25 @@ class TilesGameScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+              // Combo counter
+              if (gc.combo >= 3 && !e.gameOver)
+                IgnorePointer(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 108),
+                      child: Transform.scale(
+                        scale: 1 + (gc.combo.clamp(0, 12)) * 0.04,
+                        child: Text('COMBO ${gc.combo}',
+                            style: TextStyle(
+                                color: gc.feverActive ? Palette.pink : Palette.cyan,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1)),
+                      ),
+                    ),
+                  ),
+                ),
               // Fever: pulsing pink edge-glow vignette around the whole screen
               if (gc.feverActive && !e.gameOver)
                 IgnorePointer(
