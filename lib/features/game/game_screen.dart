@@ -5,6 +5,7 @@ import '../../services/ads/ads_service.dart';
 import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
+import '../../widgets/mascot.dart';
 import '../../widgets/tiles_board.dart';
 
 class TilesGameScreen extends StatelessWidget {
@@ -45,6 +46,12 @@ class TilesGameScreen extends StatelessWidget {
                           onPressed: () => Navigator.of(context).maybePop(),
                           icon: const Icon(Icons.arrow_back_ios_new, color: Palette.cream),
                         ),
+                        // Little dancer that hops on every correct tap
+                        MascotView(
+                          size: 56,
+                          mood: gc.flashT > 0.3 ? MascotMood.happy : MascotMood.idle,
+                        ),
+                        const SizedBox(width: 6),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

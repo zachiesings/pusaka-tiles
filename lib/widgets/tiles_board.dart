@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import '../game/engine/tiles_engine.dart';
@@ -30,7 +31,7 @@ class TilesBoardPainter extends CustomPainter {
       canvas.drawLine(Offset(c * laneW, 0), Offset(c * laneW, size.height), divider);
     }
 
-    // Tap flash glow rising from the bottom of the tapped lane
+    // Tap flash glow + spark burst rising from the tapped lane
     if (flashLane >= 0 && flashT > 0) {
       final x = flashLane * laneW;
       final r = Rect.fromLTWH(x, size.height - pxPerBeat * 1.4, laneW, pxPerBeat * 1.4);
@@ -43,6 +44,17 @@ class TilesBoardPainter extends CustomPainter {
             colors: [Palette.gold.withOpacity(0.5 * flashT), Palette.gold.withOpacity(0)],
           ).createShader(r),
       );
+      // sparks flying up & out (deterministic from flashT — no per-particle state)
+      final cxp = x + laneW / 2;
+      final baseY = size.height - pxPerBeat;
+      final spark = Paint()..color = Palette.cream.withOpacity(flashT);
+      for (var i = 0; i < 7; i++) {
+        final ang = -math.pi / 2 + (i - 3) * 0.32;
+        final dist = (1 - flashT) * pxPerBeat * 1.8;
+        final px = cxp + math.cos(ang) * dist;
+        final py = baseY + math.sin(ang) * dist;
+        canvas.drawCircle(Offset(px, py), laneW * 0.05 * (0.4 + flashT * 0.6), spark);
+      }
     }
 
     // Hit line near the bottom (1 beat up)
