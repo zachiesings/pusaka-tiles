@@ -22,6 +22,16 @@ class TilesGameController extends ChangeNotifier {
   int flashLane = -1;   // lane to flash on a correct tap
   double flashT = 0;    // flash intensity, decays each frame
 
+  // ----- Rhythm scoring -----
+  int points = 0;       // the shown score (timing + fever bonuses)
+  int combo = 0;        // consecutive Perfect/Good taps
+  int bestCombo = 0;
+  int lastJudge = 0;    // 1=Early 2=Good 3=Perfect — for the floating popup
+  int judgeEvent = 0;   // bumped each tap so the UI animates once
+  double feverMeter = 0;    // 0..1, fills with good timing
+  double feverTimeLeft = 0; // seconds of active Fever (2x)
+  bool get feverActive => feverTimeLeft > 0;
+
   TilesGameController(this.app, this.song, {this.mode = GameMode.klasik}) {
     _begin();
   }
@@ -37,6 +47,12 @@ class TilesGameController extends ChangeNotifier {
     _last = Duration.zero;
     isNewBest = false;
     starsEarned = 0;
+    points = 0;
+    combo = 0;
+    bestCombo = 0;
+    lastJudge = 0;
+    feverMeter = 0;
+    feverTimeLeft = 0;
     _scored = false;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
@@ -61,6 +77,7 @@ class TilesGameController extends ChangeNotifier {
     _last = elapsed;
     if (dt <= 0) return;
     if (flashT > 0) flashT = (flashT - dt * 4).clamp(0.0, 1.0);
+    if (feverTimeLeft > 0) feverTimeLeft = (feverTimeLeft - dt).clamp(0.0, 99.0);
     final wasOver = engine.gameOver;
     engine.tick(dt.clamp(0.0, 0.05)); // clamp to avoid huge jumps after stalls
     if (engine.gameOver && !wasOver) {
@@ -76,6 +93,29 @@ class TilesGameController extends ChangeNotifier {
     if (note >= 0) {
       flashLane = col;
       flashT = 1.0;
+      // judge timing
+      final err = engine.lastTiming.abs();
+      int base;
+      if (err <= 0.30) {
+        lastJudge = 3; base = 100;
+      } else if (err <= 0.85) {
+        lastJudge = 2; base = 50;
+      } else {
+        lastJudge = 1; base = 10;
+      }
+      judgeEvent++;
+      points += base * (feverActive ? 2 : 1);
+      if (lastJudge >= 2) {
+        combo++;
+        if (combo > bestCombo) bestCombo = combo;
+        feverMeter += lastJudge == 3 ? 0.14 : 0.05;
+        if (feverMeter >= 1 && !feverActive) {
+          feverMeter = 0;
+          feverTimeLeft = 6;
+        }
+      } else {
+        combo = 0;
+      }
       app.playNote(note);
       if (app.haptics) HapticFeedback.selectionClick();
     } else {
@@ -90,13 +130,13 @@ class TilesGameController extends ChangeNotifier {
     if (_scored) return;
     _scored = true;
     _ticker?.stop();
-    isNewBest = app.submitScore(song.id, engine.score);
+    isNewBest = app.submitScore(song.id, points);
     final len = song.length;
-    starsEarned = engine.score >= len * 3
+    starsEarned = points >= len * 100
         ? 3
-        : engine.score >= len * 2
+        : points >= len * 50
             ? 2
-            : engine.score >= len
+            : points >= len * 20
                 ? 1
                 : 0;
     app.submitStars(song.id, starsEarned);

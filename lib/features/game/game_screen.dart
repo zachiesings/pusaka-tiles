@@ -71,18 +71,36 @@ class TilesGameScreen extends StatelessWidget {
                               duration: const Duration(milliseconds: 200),
                               transitionBuilder: (child, anim) =>
                                   ScaleTransition(scale: anim, child: child),
-                              child: Text('${e.score}',
-                                  key: ValueKey<int>(e.score),
-                                  style: const TextStyle(
-                                      color: Palette.gold,
+                              child: Text('${gc.points}',
+                                  key: ValueKey<int>(gc.points),
+                                  style: TextStyle(
+                                      color: gc.feverActive ? Palette.pink : Palette.gold,
                                       fontSize: 30,
                                       fontWeight: FontWeight.w900)),
                             ),
-                            Text('Terbaik $best',
-                                style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
+                            if (gc.combo > 1)
+                              Text('Combo ${gc.combo}',
+                                  style: const TextStyle(
+                                      color: Palette.cream, fontSize: 12, fontWeight: FontWeight.w700))
+                            else
+                              Text('Terbaik $best',
+                                  style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
                           ],
                         ),
                       ],
+                    ),
+                  ),
+                  // Fever meter
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: gc.feverActive ? (gc.feverTimeLeft / 6).clamp(0.0, 1.0) : gc.feverMeter,
+                        minHeight: 6,
+                        backgroundColor: Palette.panel,
+                        color: gc.feverActive ? Palette.pink : Palette.teal,
+                      ),
                     ),
                   ),
                   // Board + tap lanes
@@ -130,9 +148,50 @@ class TilesGameScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              // Timing judgment popup (fades with flashT)
+              if (gc.flashT > 0.05 && gc.lastJudge > 0 && !e.gameOver)
+                IgnorePointer(
+                  child: Center(
+                    child: Opacity(
+                      opacity: gc.flashT.clamp(0.0, 1.0),
+                      child: Transform.scale(
+                        scale: 0.7 + gc.flashT * 0.5,
+                        child: Text(
+                          gc.lastJudge == 3
+                              ? 'PERFECT!'
+                              : gc.lastJudge == 2
+                                  ? 'GOOD'
+                                  : 'Telat',
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
+                            color: gc.lastJudge == 3
+                                ? Palette.gold
+                                : gc.lastJudge == 2
+                                    ? Palette.teal
+                                    : Palette.cream.withOpacity(0.6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              if (gc.feverActive && !e.gameOver)
+                const IgnorePointer(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 70),
+                      child: Text('🔥 FEVER ×2',
+                          style: TextStyle(
+                              color: Palette.pink, fontSize: 16, fontWeight: FontWeight.w900)),
+                    ),
+                  ),
+                ),
               if (e.gameOver)
                 _GameOverOverlay(
-                  score: e.score,
+                  score: gc.points,
                   best: best,
                   stars: gc.starsEarned,
                   isNewBest: gc.isNewBest,

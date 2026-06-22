@@ -27,6 +27,7 @@ class TilesEngine {
   int score = 0;
   bool started = false;
   bool gameOver = false;
+  double lastTiming = 0;  // signed beats: (scroll - tile.startBeat) at tap time
   late double speed;      // beats per second
   final double _step;
   final double _maxSpeed;
@@ -90,6 +91,7 @@ class TilesEngine {
     if (col == t.activeColumn) {
       started = true;
       t.tapped = true;
+      lastTiming = scroll - t.startBeat; // 0 = bang on the hit line
       score++;
       nextTap++;
       speed = min(_maxSpeed, speed + _step);
