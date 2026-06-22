@@ -9,6 +9,7 @@ import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/banner_ad.dart';
 import '../../widgets/mascot.dart';
+import '../../widgets/soft_card.dart';
 import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
 import '../about/about_screen.dart';
@@ -80,11 +81,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               const MascotView(size: 120, mood: MascotMood.idle),
               const SizedBox(height: 6),
-              const Text('PUSAKA TILES',
-                  style: TextStyle(
-                      fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2, color: Palette.cream)),
-              const Text('Ketuk ubin, mainkan lagu daerah',
-                  style: TextStyle(color: Palette.goldSoft)),
+              const GoldTitle('PUSAKA TILES', size: 32, letterSpacing: 2),
+              const SizedBox(height: 4),
+              Text('Ketuk ubin, mainkan lagu daerah',
+                  style: TextStyle(color: Palette.cream.withOpacity(0.6), letterSpacing: 0.5)),
               const SizedBox(height: 12),
               // Mode selector
               Padding(
@@ -125,6 +125,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       song: s,
                       best: app.bestForSong(s.id),
                       stars: app.bestStars(s.id),
+                      accent: Palette.laneColors[i % Palette.laneColors.length],
                       onTap: () => _play(context, s),
                     );
                   },
@@ -174,58 +175,112 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-class _SongCard extends StatelessWidget {
+class _SongCard extends StatefulWidget {
   final Song song;
   final int best;
   final int stars;
+  final Color accent;
   final VoidCallback onTap;
-  const _SongCard({required this.song, required this.best, required this.stars, required this.onTap});
+  const _SongCard(
+      {required this.song,
+      required this.best,
+      required this.stars,
+      required this.accent,
+      required this.onTap});
+
+  @override
+  State<_SongCard> createState() => _SongCardState();
+}
+
+class _SongCardState extends State<_SongCard> {
+  bool _down = false;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Palette.panel,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+    final a = widget.accent;
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _down = true),
+      onTapCancel: () => setState(() => _down = false),
+      onTapUp: (_) {
+        setState(() => _down = false);
+        widget.onTap();
+      },
+      child: AnimatedScale(
+        scale: _down ? 0.97 : 1,
+        duration: const Duration(milliseconds: 110),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Palette.panel.withOpacity(0.95), Palette.panelHi.withOpacity(0.6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: a.withOpacity(0.45), width: 1),
+            boxShadow: Palette.glow(a, blur: 20, a: 0.28),
+          ),
           child: Row(
             children: [
-              const Icon(Icons.music_note, color: Palette.gold),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(song.title,
-                        style: const TextStyle(
-                            color: Palette.cream, fontSize: 17, fontWeight: FontWeight.w800)),
-                    Text(song.daerah, style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: List.generate(
-                        3,
-                        (i) => Icon(
-                          i < stars ? Icons.star_rounded : Icons.star_outline_rounded,
-                          size: 16,
-                          color: i < stars ? Palette.gold : Palette.gridLine,
-                        ),
-                      ),
-                    ),
-                  ],
+              // accent gradient spine
+              Container(
+                width: 6,
+                height: 78,
+                margin: const EdgeInsets.only(left: 10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color.lerp(a, Colors.white, 0.4)!, a]),
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('$best', style: const TextStyle(color: Palette.gold, fontWeight: FontWeight.w900)),
-                  const Text('terbaik', style: TextStyle(color: Palette.goldSoft, fontSize: 11)),
-                ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.song.title,
+                          style: const TextStyle(
+                              color: Palette.cream, fontSize: 17, fontWeight: FontWeight.w800)),
+                      Text(widget.song.daerah,
+                          style: TextStyle(color: Palette.cream.withOpacity(0.5), fontSize: 12)),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          ...List.generate(
+                            3,
+                            (i) => Icon(
+                              i < widget.stars ? Icons.star_rounded : Icons.star_outline_rounded,
+                              size: 16,
+                              color: i < widget.stars ? Palette.gold : Palette.gridLine,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          if (widget.best > 0)
+                            Text('• ${widget.best}',
+                                style: TextStyle(
+                                    color: Palette.cream.withOpacity(0.55),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.play_circle_fill, color: Palette.gold, size: 30),
+              Container(
+                width: 46,
+                height: 46,
+                margin: const EdgeInsets.only(right: 14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [Color.lerp(a, Colors.white, 0.25)!, a]),
+                  shape: BoxShape.circle,
+                  boxShadow: Palette.glow(a, blur: 14, a: 0.5),
+                ),
+                child: const Icon(Icons.play_arrow_rounded, color: Palette.cream, size: 28),
+              ),
             ],
           ),
         ),
