@@ -9,6 +9,7 @@ import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/banner_ad.dart';
 import '../../widgets/gradient_button.dart';
+import '../../widgets/home_decor.dart';
 import '../../widgets/mascot.dart';
 import '../../widgets/soft_card.dart';
 import '../game/game_screen.dart';
@@ -125,7 +126,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final app = context.watch<AppState>();
     return Scaffold(
       body: BatikBackground(
-        child: SafeArea(
+        child: Stack(
+          children: [
+            const Positioned(top: 0, left: 0, right: 0, child: StageCurtain()),
+            SafeArea(
           child: Column(
             children: [
               Align(
@@ -277,6 +281,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 6),
             ],
           ),
+            ),
+          ],
         ),
       ),
     );
