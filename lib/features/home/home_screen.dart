@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/banner_ad.dart';
+import '../../widgets/mascot.dart';
 import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
 import '../about/about_screen.dart';
@@ -74,17 +75,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       color: app.music ? Palette.gold : Palette.goldSoft),
                 ),
               ),
-              Container(
-                width: 92,
-                height: 92,
-                decoration: BoxDecoration(
-                  color: Palette.panel,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Palette.gold, width: 2),
-                ),
-                child: const Icon(Icons.piano, size: 50, color: Palette.gold),
-              ),
-              const SizedBox(height: 12),
+              const MascotView(size: 120, mood: MascotMood.idle),
+              const SizedBox(height: 6),
               const Text('PUSAKA TILES',
                   style: TextStyle(
                       fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2, color: Palette.cream)),

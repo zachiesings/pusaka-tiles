@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../widgets/batik.dart';
+import '../../widgets/mascot.dart';
 import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -46,17 +47,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Palette.panel,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Palette.gold, width: 2),
-                    ),
-                    child: const Icon(Icons.piano, size: 60, color: Palette.gold),
-                  ),
-                  const SizedBox(height: 18),
+                  const MascotView(size: 150, mood: MascotMood.happy),
+                  const SizedBox(height: 14),
                   const Text('PUSAKA TILES',
                       style: TextStyle(
                           fontSize: 26,
