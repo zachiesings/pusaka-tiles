@@ -31,6 +31,9 @@ class TilesGameController extends ChangeNotifier {
   double feverMeter = 0;    // 0..1, fills with good timing
   double feverTimeLeft = 0; // seconds of active Fever (2x)
   bool get feverActive => feverTimeLeft > 0;
+  int perfectCount = 0;     // Perfect taps (for accuracy grade)
+  int totalTaps = 0;
+  String grade = '';        // S/A/B/C performance grade on game over
 
   TilesGameController(this.app, this.song, {this.mode = GameMode.klasik}) {
     _begin();
@@ -53,6 +56,9 @@ class TilesGameController extends ChangeNotifier {
     lastJudge = 0;
     feverMeter = 0;
     feverTimeLeft = 0;
+    perfectCount = 0;
+    totalTaps = 0;
+    grade = '';
     _scored = false;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
@@ -104,6 +110,8 @@ class TilesGameController extends ChangeNotifier {
         lastJudge = 1; base = 10;
       }
       judgeEvent++;
+      totalTaps++;
+      if (lastJudge == 3) perfectCount++;
       points += base * (feverActive ? 2 : 1);
       if (lastJudge >= 2) {
         combo++;
@@ -141,6 +149,14 @@ class TilesGameController extends ChangeNotifier {
                 : 0;
     app.submitStars(song.id, starsEarned);
     app.submitBestCombo(bestCombo);
+    final acc = totalTaps == 0 ? 0.0 : perfectCount / totalTaps;
+    grade = acc >= 0.92
+        ? 'S'
+        : acc >= 0.78
+            ? 'A'
+            : acc >= 0.55
+                ? 'B'
+                : 'C';
   }
 
   @override

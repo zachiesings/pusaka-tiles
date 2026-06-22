@@ -217,6 +217,9 @@ class TilesGameScreen extends StatelessWidget {
                   score: gc.points,
                   best: best,
                   stars: gc.starsEarned,
+                  grade: gc.grade,
+                  perfects: gc.perfectCount,
+                  total: gc.totalTaps,
                   isNewBest: gc.isNewBest,
                   onRevive: () => _revive(context, gc, app),
                   onRestart: () async {
@@ -234,18 +237,30 @@ class TilesGameScreen extends StatelessWidget {
 }
 
 class _GameOverOverlay extends StatelessWidget {
-  final int score, best, stars;
+  final int score, best, stars, perfects, total;
+  final String grade;
   final bool isNewBest;
   final VoidCallback onRevive, onRestart, onHome;
   const _GameOverOverlay({
     required this.score,
     required this.best,
     required this.stars,
+    required this.grade,
+    required this.perfects,
+    required this.total,
     required this.isNewBest,
     required this.onRevive,
     required this.onRestart,
     required this.onHome,
   });
+
+  Color get _gradeColor => grade == 'S'
+      ? Palette.gold
+      : grade == 'A'
+          ? Palette.teal
+          : grade == 'B'
+              ? Palette.cyan
+              : Palette.pink;
 
   @override
   Widget build(BuildContext context) {
@@ -282,11 +297,37 @@ class _GameOverOverlay extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            // Big performance grade
+            if (grade.isNotEmpty)
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _gradeColor, width: 3),
+                  boxShadow: Palette.glow(_gradeColor, blur: 26, a: 0.5),
+                ),
+                alignment: Alignment.center,
+                child: Text(grade,
+                    style: TextStyle(
+                        fontSize: 52, fontWeight: FontWeight.w900, color: _gradeColor, height: 1)),
+              ),
+            if (total > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('$perfects/$total PERFECT',
+                    style: TextStyle(
+                        color: Palette.cream.withOpacity(0.6),
+                        fontSize: 12,
+                        letterSpacing: 1,
+                        fontWeight: FontWeight.w700)),
+              ),
             const SizedBox(height: 10),
             Text('$score',
-                style: const TextStyle(fontSize: 52, fontWeight: FontWeight.w900, color: Palette.gold)),
+                style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Palette.gold)),
             Text('Terbaik: $best', style: const TextStyle(color: Palette.cream)),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
