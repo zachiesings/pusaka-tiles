@@ -72,6 +72,11 @@ class TilesGameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get isFinite => engine.finite;
+  double get songProgress => engine.finite && song.length > 0
+      ? (engine.nextTap / song.length).clamp(0.0, 1.0)
+      : 0.0;
+
   /// Resume after a rewarded ad: clear the loss, restart the (stopped) clock.
   void reviveAfterAd() {
     engine.revive();

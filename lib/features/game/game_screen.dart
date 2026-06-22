@@ -104,6 +104,32 @@ class TilesGameScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // "Lagu Penuh" progress to the end of the song
+                  if (gc.isFinite)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.flag_rounded, color: Palette.gold, size: 14),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: LinearProgressIndicator(
+                                value: gc.songProgress,
+                                minHeight: 5,
+                                backgroundColor: Palette.panel,
+                                color: Palette.gold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text('${(gc.songProgress * 100).round()}%',
+                              style: const TextStyle(
+                                  color: Palette.goldSoft, fontSize: 11, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
                   // Board + tap lanes
                   Expanded(
                     child: Padding(
