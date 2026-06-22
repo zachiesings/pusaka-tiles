@@ -60,9 +60,17 @@ class TilesGameScreen extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('${e.score}',
-                                style: const TextStyle(
-                                    color: Palette.gold, fontSize: 30, fontWeight: FontWeight.w900)),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              transitionBuilder: (child, anim) =>
+                                  ScaleTransition(scale: anim, child: child),
+                              child: Text('${e.score}',
+                                  key: ValueKey<int>(e.score),
+                                  style: const TextStyle(
+                                      color: Palette.gold,
+                                      fontSize: 30,
+                                      fontWeight: FontWeight.w900)),
+                            ),
                             Text('Terbaik $best',
                                 style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
                           ],
