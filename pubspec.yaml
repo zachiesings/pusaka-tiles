@@ -32,6 +32,10 @@ flutter:
   assets:
     - assets/icon/
     - assets/audio/
+    - assets/audio/piano/
+    - assets/audio/angklung/
+    - assets/audio/gamelan/
+    - assets/audio/suling/
   fonts:
     - family: Jakarta
       fonts:

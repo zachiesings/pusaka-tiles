@@ -20,6 +20,15 @@ class AppState extends ChangeNotifier {
         _haptics = _prefs.haptics {
     audio.enabled = _sound;
     audio.musicEnabled = _music;
+    audio.instrument = _prefs.instrument;
+  }
+
+  String get instrument => audio.instrument;
+  void setInstrument(String id) {
+    audio.instrument = id;
+    _prefs.setInstrument(id);
+    if (_sound) audio.playNote(7); // preview "sol"
+    notifyListeners();
   }
 
   bool get music => _music;

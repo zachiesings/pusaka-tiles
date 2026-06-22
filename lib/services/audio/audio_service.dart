@@ -10,6 +10,7 @@ class AudioService {
   final AudioPlayer _bgm = AudioPlayer();
   bool musicEnabled = true;
   bool _bgmPlaying = false;
+  String instrument = 'piano'; // selected traditional voice folder
 
   AudioService({int voices = 5}) : _pool = List.generate(voices, (_) => AudioPlayer()) {
     for (final p in _pool) {
@@ -54,10 +55,10 @@ class AudioService {
     }
   }
 
-  /// Play melody note by table index (clamped to the available files 0..12).
+  /// Play melody note by table index using the selected instrument voice.
   Future<void> playNote(int index) {
     final i = index < 0 ? 0 : (index > 12 ? 12 : index);
-    return _play('audio/note_${i.toString().padLeft(2, '0')}.wav');
+    return _play('audio/$instrument/note_${i.toString().padLeft(2, '0')}.wav');
   }
 
   Future<void> playWrong() => _play('audio/wrong.wav', volume: 0.8);

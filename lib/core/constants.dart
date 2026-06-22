@@ -22,6 +22,15 @@ class K {
   static const String kHighScore = 'pt_high_score';   // legacy global best
   static const String kSound     = 'pt_sound';
   static const String kMusic     = 'pt_music';
+  static const String kInstrument = 'pt_instrument';
+
+  /// Selectable traditional instrument voices (folder id -> display label).
+  static const List<MapEntry<String, String>> instruments = [
+    MapEntry('piano', 'Piano'),
+    MapEntry('angklung', 'Angklung'),
+    MapEntry('gamelan', 'Gamelan'),
+    MapEntry('suling', 'Suling'),
+  ];
   static const String kHaptics   = 'pt_haptics';
   static const String kFirstRun  = 'pt_first_run';
   static String songBestKey(String songId) => 'pt_best_$songId';
