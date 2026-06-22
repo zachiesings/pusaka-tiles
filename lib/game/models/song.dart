@@ -22,7 +22,7 @@ class Song {
     required this.beats,
     this.bpm = 100,
     this.speedScale = 1.0,
-  }) : assert(notes.length == beats.length);
+  });
 
   int get length => notes.length;
 }
