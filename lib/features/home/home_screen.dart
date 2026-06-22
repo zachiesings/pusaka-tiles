@@ -13,6 +13,7 @@ import '../../widgets/soft_card.dart';
 import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
 import '../about/about_screen.dart';
+import '../achievements/achievements_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -129,6 +130,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       onTap: () => _play(context, s),
                     );
                   },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AchievementsScreen())),
+                  icon: const Icon(Icons.emoji_events),
+                  label: const Text('Pencapaian'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Palette.gold,
+                    side: const BorderSide(color: Palette.gold),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    minimumSize: const Size(double.infinity, 0),
+                  ),
                 ),
               ),
               Padding(

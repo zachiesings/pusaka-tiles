@@ -140,6 +140,7 @@ class TilesGameController extends ChangeNotifier {
                 ? 1
                 : 0;
     app.submitStars(song.id, starsEarned);
+    app.submitBestCombo(bestCombo);
   }
 
   @override

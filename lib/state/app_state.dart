@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../game/songs.dart';
 import '../services/storage/prefs.dart';
 import '../services/ads/ads_service.dart';
 import '../services/audio/audio_service.dart';
@@ -72,6 +73,21 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // ----- Achievement stats -----
+  int get bestCombo => _prefs.bestCombo;
+  void submitBestCombo(int c) {
+    if (c > _prefs.bestCombo) {
+      _prefs.setBestCombo(c);
+      notifyListeners();
+    }
+  }
+
+  int get songsWithAnyStar =>
+      SongCatalog.all.where((s) => _prefs.songStars(s.id) >= 1).length;
+  int get songsWithThreeStars =>
+      SongCatalog.all.where((s) => _prefs.songStars(s.id) >= 3).length;
+  int get totalSongs => SongCatalog.all.length;
 
   void playNote(int index) {
     if (_sound) audio.playNote(index);

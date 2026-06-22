@@ -23,6 +23,9 @@ class Prefs {
   String get instrument => _p.getString(K.kInstrument) ?? 'piano';
   Future<void> setInstrument(String v) => _p.setString(K.kInstrument, v);
 
+  int get bestCombo => _p.getInt(K.kBestCombo) ?? 0;
+  Future<void> setBestCombo(int v) => _p.setInt(K.kBestCombo, v);
+
   bool get haptics => _p.getBool(K.kHaptics) ?? true;
   Future<void> setHaptics(bool v) => _p.setBool(K.kHaptics, v);
 

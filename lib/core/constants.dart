@@ -23,6 +23,7 @@ class K {
   static const String kSound     = 'pt_sound';
   static const String kMusic     = 'pt_music';
   static const String kInstrument = 'pt_instrument';
+  static const String kBestCombo  = 'pt_best_combo';
 
   /// Selectable traditional instrument voices (folder id -> display label).
   static const List<MapEntry<String, String>> instruments = [
