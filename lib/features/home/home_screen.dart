@@ -170,7 +170,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   }).toList(),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
+              // Instrument selector (novel: play folk songs on traditional voices)
+              SizedBox(
+                height: 34,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(right: 4, top: 6),
+                      child: Icon(Icons.music_note_rounded, color: Palette.teal, size: 18),
+                    ),
+                    ...K.instruments.map((e) {
+                      final sel = app.instrument == e.key;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: GestureDetector(
+                          onTap: () => app.setInstrument(e.key),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: sel ? Palette.teal : Palette.panelHi.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Text(e.value,
+                                style: TextStyle(
+                                    color: sel ? Palette.ink : Palette.cream,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
