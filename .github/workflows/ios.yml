@@ -1,0 +1,91 @@
+name: iOS TestFlight
+
+# Builds + signs the iOS app on a GitHub macOS runner and uploads it to
+# App Store Connect / TestFlight — using the App Store Connect API key + a shared
+# Apple Distribution cert private key, both stored in repo secrets. No Codemagic,
+# no Mac needed. Mirrors the proven Beat Nusantara pipeline.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/ios.yml'
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+  CERTIFICATE_PRIVATE_KEY: ${{ secrets.CERTIFICATE_PRIVATE_KEY }}
+
+jobs:
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode (Apple requires iOS 26 SDK to upload)
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.app 2>/dev/null || true
+          xcodebuild -version
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Disable Swift Package Manager (google_mobile_ads is CocoaPods-only)
+        run: flutter config --no-enable-swift-package-manager
+
+      - name: Install codemagic-cli-tools
+        run: pip3 install --break-system-packages codemagic-cli-tools || pip3 install codemagic-cli-tools
+
+      - name: Generate platform folders
+        run: flutter create --org id.pusakatiles --project-name pusaka_tiles --platforms=android,ios .
+
+      - name: Force bundle id + iPhone-only
+        run: |
+          find ios -name project.pbxproj -exec sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID;/g" {} +
+          find ios -name project.pbxproj -exec sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = "1";/g' {} +
+
+      - name: Configure Info.plist (AdMob id + export compliance)
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :GADApplicationIdentifier string ca-app-pub-3940256099942544~1458002511" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-3940256099942544~1458002511" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/Runner/Info.plist
+
+      - name: Flutter packages
+        run: flutter pub get
+
+      - name: Generate launcher icons
+        run: dart run flutter_launcher_icons || true
+
+      - name: Fetch signing files (reuses the shared Apple Distribution cert)
+        run: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --certificate-key "@env:CERTIFICATE_PRIVATE_KEY" \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles --export-options-plist "$HOME/export_options.plist"
+
+      - name: Build IPA (release)
+        run: |
+          flutter build ipa --release \
+            --build-number=$(date +%s) \
+            --export-options-plist="$HOME/export_options.plist"
+
+      - name: Upload to App Store Connect / TestFlight
+        run: |
+          app-store-connect publish \
+            --path "$(find build/ios/ipa -name '*.ipa' | head -1)"
+
+      - name: Save IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pusaka-tiles-ipa
+          path: build/ios/ipa/*.ipa
+          if-no-files-found: warn
