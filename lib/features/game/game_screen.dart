@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
+import '../../game/stage.dart';
 import '../../services/ads/ads_service.dart';
 import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
@@ -104,6 +105,8 @@ class TilesGameScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Campaign objective bar (only when playing a stage)
+                  if (gc.stage != null) _ObjectiveBar(gc: gc),
                   // "Lagu Penuh" progress to the end of the song
                   if (gc.isFinite)
                     Padding(
@@ -261,12 +264,17 @@ class TilesGameScreen extends StatelessWidget {
                 _GameOverOverlay(
                   score: gc.points,
                   best: best,
-                  stars: gc.starsEarned,
+                  stars: gc.stage != null ? gc.stageStars : gc.starsEarned,
                   grade: gc.grade,
                   perfects: gc.perfectCount,
                   total: gc.totalTaps,
                   isNewBest: gc.isNewBest,
                   won: gc.won,
+                  isStage: gc.stage != null,
+                  stageWon: gc.stageWon,
+                  stageGoal: gc.stage == null
+                      ? ''
+                      : gc.stage!.goal.label(gc.stage!.target),
                   onRevive: () => _revive(context, gc, app),
                   onRestart: () async {
                     await app.maybeShowInterstitial();
@@ -282,11 +290,75 @@ class TilesGameScreen extends StatelessWidget {
   }
 }
 
+/// Live campaign-objective bar shown during a stage run — the goal label plus a
+/// progress track that fills toward the target and turns gold once reached.
+class _ObjectiveBar extends StatelessWidget {
+  final TilesGameController gc;
+  const _ObjectiveBar({required this.gc});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = gc.stage!;
+    int cur, tgt;
+    String text;
+    switch (s.goal) {
+      case StageGoal.score:
+        cur = gc.points;
+        tgt = s.target;
+        text = 'Skor $cur / $tgt';
+        break;
+      case StageGoal.combo:
+        cur = gc.bestCombo;
+        tgt = s.target;
+        text = 'Combo ×$cur / $tgt';
+        break;
+      case StageGoal.perfect:
+        cur = gc.perfectCount;
+        tgt = s.target;
+        text = 'Perfect $cur / $tgt';
+        break;
+      case StageGoal.fullsong:
+        cur = (gc.songProgress * 100).round();
+        tgt = 100;
+        text = 'Tamatkan lagu • $cur%';
+        break;
+    }
+    final prog = tgt == 0 ? 0.0 : (cur / tgt).clamp(0.0, 1.0);
+    final done = tgt > 0 && cur >= tgt;
+    final c = done ? Palette.gold : s.accent;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      child: Row(
+        children: [
+          Icon(done ? Icons.check_circle_rounded : s.goal.icon, color: c, size: 15),
+          const SizedBox(width: 6),
+          Text(text,
+              style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w800)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: prog,
+                minHeight: 5,
+                backgroundColor: Palette.panel,
+                color: c,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _GameOverOverlay extends StatelessWidget {
   final int score, best, stars, perfects, total;
   final String grade;
   final bool isNewBest;
   final bool won;
+  final bool isStage, stageWon;
+  final String stageGoal;
   final VoidCallback onRevive, onRestart, onHome;
   const _GameOverOverlay({
     required this.score,
@@ -297,10 +369,20 @@ class _GameOverOverlay extends StatelessWidget {
     required this.total,
     required this.isNewBest,
     required this.won,
+    this.isStage = false,
+    this.stageWon = false,
+    this.stageGoal = '',
     required this.onRevive,
     required this.onRestart,
     required this.onHome,
   });
+
+  String get _headline {
+    if (isStage) return stageWon ? 'Pusaka Diraih! 🎉' : 'Babak Belum Tuntas';
+    if (won) return 'Lagu Selesai! 🎶';
+    if (isNewBest) return 'Rekor Baru! 🎉';
+    return 'Yah, Meleset!';
+  }
 
   Color get _gradeColor => grade == 'S'
       ? Palette.gold
@@ -331,13 +413,18 @@ class _GameOverOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-                won
-                    ? 'Lagu Selesai! 🎶'
-                    : isNewBest
-                        ? 'Rekor Baru! 🎉'
-                        : 'Yah, Meleset!',
+            Text(_headline,
+                textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Palette.cream)),
+            if (isStage && stageGoal.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text('Target: $stageGoal',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: stageWon ? Palette.gold : Palette.cream.withOpacity(0.6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            ],
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -401,7 +488,7 @@ class _GameOverOverlay extends StatelessWidget {
                     side: const BorderSide(color: Palette.goldSoft),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Pilih Lagu'),
+                  child: Text(isStage ? 'Peta' : 'Pilih Lagu'),
                 ),
               ),
               const SizedBox(width: 10),

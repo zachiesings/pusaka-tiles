@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../game/engine/tiles_engine.dart';
 import '../game/game_mode.dart';
 import '../game/models/song.dart';
+import '../game/stage.dart';
 import 'app_state.dart';
 
 /// Drives a Pusaka Tiles session: owns the engine, runs the per-frame clock via
@@ -12,6 +13,7 @@ class TilesGameController extends ChangeNotifier {
   final AppState app;
   final Song song;
   final GameMode mode;
+  final StageSpec? stage; // non-null when playing a campaign stage
 
   late TilesEngine engine;
   Ticker? _ticker;
@@ -36,7 +38,12 @@ class TilesGameController extends ChangeNotifier {
   int totalTaps = 0;
   String grade = '';        // S/A/B/C performance grade on game over
 
-  TilesGameController(this.app, this.song, {this.mode = GameMode.klasik}) {
+  // ----- Campaign result (valid after _finish when [stage] != null) -----
+  int stageStars = 0;       // 0 = goal not met (stage failed)
+  bool stageWon = false;
+  bool stageFirstClear = false;
+
+  TilesGameController(this.app, this.song, {this.mode = GameMode.klasik, this.stage}) {
     _begin();
   }
 
@@ -62,6 +69,9 @@ class TilesGameController extends ChangeNotifier {
     perfectCount = 0;
     totalTaps = 0;
     grade = '';
+    stageStars = 0;
+    stageWon = false;
+    stageFirstClear = false;
     _scored = false;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
@@ -166,6 +176,7 @@ class TilesGameController extends ChangeNotifier {
     app.submitStars(song.id, starsEarned);
     app.submitBestCombo(bestCombo);
     app.addCoins(points ~/ 50); // earn coins to spend on tile themes
+    app.incGamesPlayed();
     final acc = totalTaps == 0 ? 0.0 : perfectCount / totalTaps;
     grade = acc >= 0.92
         ? 'S'
@@ -174,6 +185,23 @@ class TilesGameController extends ChangeNotifier {
             : acc >= 0.55
                 ? 'B'
                 : 'C';
+
+    // Campaign evaluation: did this run satisfy the stage's objective?
+    final s = stage;
+    if (s != null) {
+      stageStars = s.starsFor(
+        points: points,
+        bestCombo: bestCombo,
+        perfects: perfectCount,
+        total: totalTaps,
+        completed: engine.completed,
+        grade: grade,
+      );
+      stageWon = stageStars > 0;
+      if (stageWon) {
+        stageFirstClear = app.recordStageResult(s.index, stageStars, s.coins);
+      }
+    }
   }
 
   @override

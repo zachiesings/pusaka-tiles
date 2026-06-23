@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'constants.dart';
+import 'motion.dart';
 
-/// Premium "Panggung Malam" theme — Plus Jakarta Sans + cool indigo tokens.
+/// Premium "Panggung Malam" theme — Plus Jakarta Sans + cool indigo tokens,
+/// with a regal Cinzel display face for titles.
 ThemeData buildTheme() {
   const font = 'Jakarta';
   final base = ThemeData.dark(useMaterial3: true);
   return base.copyWith(
     scaffoldBackgroundColor: Palette.bg0,
+    pageTransitionsTheme: panggungPageTransitionsTheme,
     colorScheme: base.colorScheme.copyWith(
       primary: Palette.violet,
       secondary: Palette.teal,
@@ -24,7 +27,8 @@ ThemeData buildTheme() {
       centerTitle: true,
       foregroundColor: Palette.cream,
       titleTextStyle: TextStyle(
-          fontFamily: font, fontWeight: FontWeight.w800, fontSize: 20, color: Palette.cream),
+          fontFamily: 'Cinzel', fontWeight: FontWeight.w700, fontSize: 19,
+          letterSpacing: 1, color: Palette.cream),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(

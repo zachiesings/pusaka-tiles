@@ -37,6 +37,10 @@ class K {
   ];
   static const String kHaptics   = 'pt_haptics';
   static const String kFirstRun  = 'pt_first_run';
+  // ----- Campaign ("Perjalanan Nusantara") -----
+  static const String kCampaignUnlocked = 'pt_campaign_unlocked'; // highest stage unlocked (1..20)
+  static const String kStageStars = 'pt_stage_stars'; // CSV of 20 star counts (0..3)
+  static const String kGames     = 'pt_games_played';
   static String songBestKey(String songId) => 'pt_best_$songId';
   static String songStarsKey(String songId) => 'pt_stars_$songId';
 }

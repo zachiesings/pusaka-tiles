@@ -18,6 +18,8 @@ class AppState extends ChangeNotifier {
   int _coins;
   late Set<String> _unlockedThemes;
   late String _selectedTheme;
+  late int _campaignUnlocked;
+  late List<int> _stageStars;
 
   AppState(this._prefs, this.ads, this.audio)
       : _sound = _prefs.sound,
@@ -30,6 +32,42 @@ class AppState extends ChangeNotifier {
     _unlockedThemes = _prefs.unlockedThemes.toSet()..add('klasik');
     _selectedTheme = _prefs.selectedTheme;
     TileTheme.active = TileThemeCatalog.byId(_selectedTheme).colors;
+    _campaignUnlocked = _prefs.campaignUnlocked;
+    _stageStars = _prefs.stageStars;
+  }
+
+  // ----- Campaign ("Perjalanan Nusantara") -----
+  static const int campaignCount = 20;
+
+  int get campaignUnlocked => _campaignUnlocked;
+  bool isStageUnlocked(int index) => index <= _campaignUnlocked;
+  int starsForStage(int index) =>
+      (index >= 1 && index <= 20) ? _stageStars[index - 1] : 0;
+  int get totalStars => _stageStars.fold(0, (a, b) => a + b);
+  int get stagesCleared => _stageStars.where((s) => s > 0).length;
+  bool get campaignComplete => stagesCleared >= campaignCount;
+
+  int get gamesPlayed => _prefs.gamesPlayed;
+  void incGamesPlayed() => _prefs.setGamesPlayed(_prefs.gamesPlayed + 1);
+
+  /// Record a finished campaign stage. Persists the best star count, unlocks the
+  /// next stage, and grants [coins] on the FIRST clear only. Returns true if this
+  /// was the stage's first-ever clear (for the reward animation).
+  bool recordStageResult(int index, int stars, int coins) {
+    if (index < 1 || index > 20 || stars <= 0) return false;
+    final prev = _stageStars[index - 1];
+    final firstClear = prev == 0;
+    if (stars > prev) {
+      _stageStars[index - 1] = stars;
+      _prefs.setStageStars(_stageStars);
+    }
+    if (firstClear) addCoins(coins);
+    if (index == _campaignUnlocked && index < campaignCount) {
+      _campaignUnlocked = index + 1;
+      _prefs.setCampaignUnlocked(_campaignUnlocked);
+    }
+    notifyListeners();
+    return firstClear;
   }
 
   // ----- Coins & tile themes -----
@@ -50,6 +88,8 @@ class AppState extends ChangeNotifier {
 
   String get selectedTheme => _selectedTheme;
   bool isThemeUnlocked(String id) => _unlockedThemes.contains(id);
+  int get unlockedThemeCount => _unlockedThemes.length;
+  int get totalThemes => TileThemeCatalog.all.length;
 
   bool buyTheme(TileTheme t) {
     if (_unlockedThemes.contains(t.id)) return false;

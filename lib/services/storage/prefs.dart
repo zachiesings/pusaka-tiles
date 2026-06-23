@@ -40,4 +40,26 @@ class Prefs {
 
   String get selectedTheme => _p.getString(K.kTheme) ?? 'klasik';
   Future<void> setSelectedTheme(String v) => _p.setString(K.kTheme, v);
+
+  // ----- Campaign -----
+  int get campaignUnlocked => _p.getInt(K.kCampaignUnlocked) ?? 1;
+  Future<void> setCampaignUnlocked(int v) => _p.setInt(K.kCampaignUnlocked, v);
+
+  /// Per-stage best stars, stored as a 20-slot CSV (index 0 -> stage 1).
+  List<int> get stageStars {
+    final raw = _p.getString(K.kStageStars);
+    final list = List<int>.filled(20, 0);
+    if (raw == null || raw.isEmpty) return list;
+    final parts = raw.split(',');
+    for (var i = 0; i < 20 && i < parts.length; i++) {
+      list[i] = int.tryParse(parts[i]) ?? 0;
+    }
+    return list;
+  }
+
+  Future<void> setStageStars(List<int> v) =>
+      _p.setString(K.kStageStars, v.join(','));
+
+  int get gamesPlayed => _p.getInt(K.kGames) ?? 0;
+  Future<void> setGamesPlayed(int v) => _p.setInt(K.kGames, v);
 }
