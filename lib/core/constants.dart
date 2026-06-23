@@ -13,10 +13,11 @@ class K {
 
   // ----- Ads -----
   static const bool adsEnabled = true;
-  static const bool useTestAds = true;
-  static const String rewardedAdUnit     = 'ca-app-pub-3940256099942544/5224354917';
-  static const String interstitialAdUnit = 'ca-app-pub-3940256099942544/1033173712';
-  static const String bannerAdUnit       = 'ca-app-pub-3940256099942544/6300978111';
+  static const bool useTestAds = false; // REAL ads (production)
+  static const bool interstitialEnabled = false; // Rewarded-only per design
+  static const String rewardedAdUnit     = 'ca-app-pub-1298950542115439/6115007852';
+  static const String interstitialAdUnit = ''; // disabled (interstitialEnabled=false)
+  static const String bannerAdUnit       = '';
 
   // ----- Persistence keys -----
   static const String kHighScore = 'pt_high_score';   // legacy global best

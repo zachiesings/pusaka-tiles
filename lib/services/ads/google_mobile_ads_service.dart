@@ -76,7 +76,8 @@ class GoogleMobileAdsService implements AdsService {
 
   @override
   Future<void> maybeShowInterstitial() async {
-    if (!available) return;
+    if (!available || !K.interstitialEnabled) return; // Rewarded-only
+    if (K.interstitialAdUnit.isEmpty) return;
     try {
       await _ensureInit();
     } catch (_) {

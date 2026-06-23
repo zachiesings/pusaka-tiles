@@ -50,8 +50,8 @@ jobs:
 
       - name: Configure Info.plist (AdMob id + export compliance)
         run: |
-          /usr/libexec/PlistBuddy -c "Add :GADApplicationIdentifier string ca-app-pub-3940256099942544~1458002511" ios/Runner/Info.plist \
-            || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-3940256099942544~1458002511" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :GADApplicationIdentifier string ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/Runner/Info.plist \
             || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/Runner/Info.plist
 
