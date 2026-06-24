@@ -734,7 +734,15 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
   void initState() {
     super.initState();
     widget.gc.addListener(_onGc);
-    _ticker.start();
+    // Ticker runs ON DEMAND only (started by _kick after a spawn, stopped when
+    // idle) — so a frozen/disposed screen leaves no running animation.
+  }
+
+  void _kick() {
+    if (!_ticker.isActive) {
+      _last = Duration.zero;
+      _ticker.start();
+    }
   }
 
   @override
@@ -823,6 +831,7 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
       _flash = f;
       _flashColor = color;
     }
+    _kick();
   }
 
   void _milestoneBurst(bool fever) {
@@ -861,6 +870,7 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
       _flash = 0.45;
       _flashColor = color;
     }
+    _kick();
   }
 
   void _tick(Duration elapsed) {
@@ -885,9 +895,14 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
     }
     if (_flash > 0) {
       _flash = (_flash - dt * 2.5).clamp(0.0, 1.0);
-      active = true;
+      if (_flash > 0.001) active = true;
     }
-    if (active && mounted) setState(() {}); // repaint only while something animates
+    if (!active) {
+      _ticker.stop(); // idle → stop the ticker entirely (no leaked animation)
+      _last = Duration.zero;
+      return;
+    }
+    if (mounted) setState(() {});
   }
 
   @override
