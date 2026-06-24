@@ -86,6 +86,9 @@ Future<void> _capture(
   // Tear the screen down, then stop the controller's ticker before teardown.
   await tester.pumpWidget(const SizedBox.shrink());
   gc.dispose();
+  // Dispose audio too: audioplayers registers a FramePositionUpdater frame
+  // callback that otherwise survives teardown ("animation still running").
+  app.audio.dispose();
 }
 
 void main() {
