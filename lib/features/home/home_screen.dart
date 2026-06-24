@@ -596,35 +596,19 @@ class _ProfilTab extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
           children: [
             const Center(child: DisplayText('Profil', size: 26)),
+            const SizedBox(height: 14),
+            _LevelHeader(stars: app.totalStars, coins: app.coins),
+            const SizedBox(height: 14),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.55,
+              children: [for (final r in rows) _StatCard(icon: r.$1, label: r.$2, value: r.$3)],
+            ),
             const SizedBox(height: 16),
-            for (final r in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: SoftCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: Palette.brand,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(r.$1, color: Palette.cream, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(r.$2,
-                            style: const TextStyle(
-                                color: Palette.cream, fontSize: 16, fontWeight: FontWeight.w700)),
-                      ),
-                      Text(r.$3,
-                          style: const TextStyle(
-                              color: Palette.gold, fontSize: 18, fontWeight: FontWeight.w900)),
-                    ],
-                  ),
-                ),
-              ),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -784,6 +768,117 @@ class _SongCardState extends State<_SongCard> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Premium profile header — a level ring (derived from total stars), title,
+/// progress to next level, and coins.
+class _LevelHeader extends StatelessWidget {
+  final int stars, coins;
+  const _LevelHeader({required this.stars, required this.coins});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = 1 + stars ~/ 5;
+    final into = stars % 5;
+    final prog = into / 5;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Palette.violet.withOpacity(0.35), Palette.panel.withOpacity(0.9)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Palette.gold.withOpacity(0.4)),
+        boxShadow: Palette.glow(Palette.violet, blur: 24, a: 0.25),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 64,
+            height: 64,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: CircularProgressIndicator(
+                    value: prog,
+                    strokeWidth: 5,
+                    backgroundColor: Palette.bg1,
+                    color: Palette.gold,
+                  ),
+                ),
+                Text('$level', style: Typo.score.copyWith(color: Palette.cream, fontSize: 26)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Penari Pusaka', style: Typo.title.copyWith(color: Palette.cream, fontSize: 16)),
+                Text('Level $level • ${5 - into} bintang ke Level ${level + 1}',
+                    style: Typo.small.copyWith(color: Palette.cream.withOpacity(0.6))),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.monetization_on_rounded, color: Palette.gold, size: 16),
+                    const SizedBox(width: 4),
+                    Text('$coins', style: Typo.chip.copyWith(color: Palette.gold, fontSize: 15)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A compact stat card for the profile grid.
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String label, value;
+  const _StatCard({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Palette.panel.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Palette.gold.withOpacity(0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(gradient: Palette.brand, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: Palette.cream, size: 19),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, style: Typo.score.copyWith(color: Palette.gold, fontSize: 22)),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Typo.small.copyWith(color: Palette.cream.withOpacity(0.65))),
+            ],
+          ),
+        ],
       ),
     );
   }

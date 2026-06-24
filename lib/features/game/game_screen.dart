@@ -364,11 +364,32 @@ class _GameOverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black.withOpacity(0.72),
-      alignment: Alignment.center,
-      child: Container(
-        margin: const EdgeInsets.all(28),
+    final celebrate = stars >= 2 || won || isNewBest;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 1100),
+      curve: Curves.easeOut,
+      builder: (context, t, _) {
+        return Container(
+          color: Colors.black.withOpacity(0.72 * t.clamp(0.0, 1.0)),
+          alignment: Alignment.center,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (celebrate)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _ResultBurstPainter(t, stars >= 3 ? Palette.gold : Palette.violet),
+                    ),
+                  ),
+                ),
+              Opacity(
+                opacity: t.clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 0.86 + 0.14 * t,
+                  child: Container(
+                    margin: const EdgeInsets.all(28),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -434,8 +455,13 @@ class _GameOverOverlay extends StatelessWidget {
                         fontWeight: FontWeight.w700)),
               ),
             const SizedBox(height: 10),
-            Text('$score',
-                style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Palette.gold)),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: score.toDouble()),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOut,
+              builder: (_, v, __) => Text(v.round().toString(),
+                  style: Typo.score.copyWith(color: Palette.gold, fontSize: 48)),
+            ),
             Text('Terbaik: $best', style: const TextStyle(color: Palette.cream)),
             const SizedBox(height: 22),
             // Watch-ad button shows ONLY when a real rewarded ad is loaded (2.1a):
@@ -498,7 +524,13 @@ class _GameOverOverlay extends StatelessWidget {
             ]),
           ],
         ),
-      ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -916,4 +948,34 @@ class _FxPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FxPainter old) => true;
+}
+
+/// Radial confetti burst behind the results card (driven by the reveal tween).
+class _ResultBurstPainter extends CustomPainter {
+  final double t;
+  final Color color;
+  _ResultBurstPainter(this.t, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2, cy = size.height * 0.4;
+    final prog = t.clamp(0.0, 1.0);
+    for (var i = 0; i < 28; i++) {
+      final ang = i * (2 * math.pi / 28);
+      final dist = prog * size.shortestSide * 0.55 * (0.6 + (i % 3) * 0.18);
+      final x = cx + math.cos(ang) * dist;
+      final y = cy + math.sin(ang) * dist + prog * prog * 70; // light gravity
+      final col = (i % 3 == 0) ? color : (i % 3 == 1) ? Palette.pink : Palette.cyan;
+      canvas.drawCircle(
+        Offset(x, y),
+        3.6 * (1 - prog * 0.6),
+        Paint()
+          ..color = col.withOpacity((1 - prog).clamp(0.0, 1.0))
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ResultBurstPainter old) => old.t != t;
 }
