@@ -182,4 +182,21 @@ platform :ios do
     end
   end
 
+  desc "Delete the localization named in DEL_LOCALE from the edit version"
+  lane :del_locale do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER"], key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    ver = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    target = ENV["DEL_LOCALE"]
+    loc = ver.get_app_store_version_localizations.find { |l| l.locale == target }
+    if loc
+      loc.delete!
+      UI.success("Deleted localization #{target}")
+    else
+      UI.message("Locale #{target} not present; nothing to delete")
+    end
+  end
+
 end
