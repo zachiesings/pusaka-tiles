@@ -198,6 +198,68 @@ class SongCatalog {
       notes: [3,5,7,7, 8,7, 3,5,7,7, 8,7, 3,5,7,10,9,8,7,6,5, 4,6,5,4,3],
       beats: [2,1,1],
     ),
+    // ── Block 3: public-domain classical (composer d. >70 yrs) — own C-major arrangements ──
+    Song(
+      id: 'nocturne', title: 'Nocturne Op.9 No.2', daerah: 'Chopin',
+      bpm: 80, speedScale: 0.9,
+      notes: [10,7,8,7,6,5, 5,4,5, 7,6,5,4, 4,3,4, 10,9,10,12,11,10, 9,8,7,8, 7,6,5,4,3],
+      beats: [2,1,1,1,1],
+    ),
+    Song(
+      id: 'turkishmarch', title: 'Turkish March', daerah: 'Mozart',
+      bpm: 120, speedScale: 1.2,
+      notes: [8,7,8,10, 8,7,8,12, 8,7,8,10,8,7,8, 5,8,7,8,10, 8,7,8,12, 12,11,10,9,10,8, 7,8,10,12,10,8,7,5],
+      beats: [1,1,1,2],
+    ),
+    Song(
+      id: 'preludec', title: 'Prelude in C', daerah: 'Bach',
+      bpm: 92, speedScale: 1.0,
+      notes: [3,5,7,10,12, 3,5,7,10,12, 3,6,8,11,12, 3,6,8,11,12, 2,4,7,9,11, 2,4,7,9,11, 3,5,7,10,12],
+      beats: [1],
+    ),
+    Song(
+      id: 'clairdelune', title: 'Clair de Lune', daerah: 'Debussy',
+      bpm: 72, speedScale: 0.85,
+      notes: [10,9,8, 7,8,7,5, 12,11,10,9, 8,7,6,5, 7,8,10, 9,8,7,5,4,3],
+      beats: [2,1,1],
+    ),
+    Song(
+      id: 'gymnopedie', title: 'Gymnopédie No.1', daerah: 'Satie',
+      bpm: 80, speedScale: 0.88,
+      notes: [9,10,12, 11,10,9,8, 7,8,9, 10,9,8,7, 5,7,9, 8,7,6,5,4,3],
+      beats: [2,1,1],
+    ),
+    Song(
+      id: 'swanlake', title: 'Swan Lake', daerah: 'Tchaikovsky',
+      bpm: 100, speedScale: 1.05,
+      notes: [8,5, 8,9,10, 9,8, 10,9,8, 7,8, 12,11,10,9,8, 7,8,9,8,7,5, 8],
+      beats: [2,2,1,1],
+    ),
+    Song(
+      id: 'morningmood', title: 'Morning Mood', daerah: 'Grieg',
+      bpm: 88, speedScale: 0.95,
+      notes: [7,5,4,3,4,5,7, 5,4,3, 8,7,5,4,3, 4,5,7, 8,10,8,7,5, 7,5,4,3],
+      beats: [2,1,1],
+    ),
+    // ── Block 3: more lagu daerah (traditional / public domain) ──
+    Song(
+      id: 'oinanikeke', title: 'O Ina Ni Keke', daerah: 'Sulawesi Utara',
+      bpm: 104, speedScale: 1.0,
+      notes: [7, 10,9,8,7, 8,7,5, 7, 10,9,8,7, 8,7,5, 5,6,7,8,7,6,5, 4,3],
+      beats: [1,1,1,1,2],
+    ),
+    Song(
+      id: 'tokecang', title: 'Tokecang', daerah: 'Jawa Barat',
+      bpm: 112, speedScale: 1.1,
+      notes: [5,5,3,5, 5,5,3,5, 7,7,5,7, 8,7,5,4,3, 5,5,3,5, 7,8,7,5,4,3],
+      beats: [1,1,1,1],
+    ),
+    Song(
+      id: 'lirilir', title: 'Lir-Ilir', daerah: 'Jawa Tengah',
+      bpm: 90, speedScale: 0.95,
+      notes: [5,6,7,8, 7,6,5, 5,6,7,8,9, 8,7,6,5, 7,8,7,6,5,4,3],
+      beats: [2,1,1],
+    ),
   ];
 
   static Song byId(String id) =>

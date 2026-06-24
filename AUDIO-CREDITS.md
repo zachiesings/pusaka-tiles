@@ -39,3 +39,29 @@ in and update the program map in `tool/render_audio.py`.
 are transposed to C-major diatonic, so the bed never clashes; the player's tapped
 melody layers crisply on top. Generated programmatically per song from
 `songs.dart` (tempo per song), with velocity + micro-timing humanization.
+
+## Block 3 additions (2026-06-24) — public-domain works
+
+Own simplified C-major arrangements (note data only; rendered via fluidsynth).
+No copyrighted recordings or third-party arrangements were used.
+
+### Classical (composer died >70 years ago → public domain)
+| Song | Composer | Died | Status |
+|------|----------|------|--------|
+| Nocturne Op.9 No.2 | Frédéric Chopin | 1849 | Public domain |
+| Turkish March (Rondo alla Turca) | W. A. Mozart | 1791 | Public domain |
+| Prelude in C (BWV 846) | J. S. Bach | 1750 | Public domain |
+| Clair de Lune | Claude Debussy | 1918 | Public domain |
+| Gymnopédie No.1 | Erik Satie | 1925 | Public domain |
+| Swan Lake (theme) | P. I. Tchaikovsky | 1893 | Public domain |
+| Morning Mood | Edvard Grieg | 1907 | Public domain |
+
+### Lagu daerah (traditional / anonymous → public domain)
+| Song | Region | Status |
+|------|--------|--------|
+| O Ina Ni Keke | Sulawesi Utara (Minahasa) | Traditional, public domain |
+| Tokecang | Jawa Barat (Sunda) | Traditional, public domain |
+| Lir-Ilir | Jawa Tengah (attr. Sunan Kalijaga, ~15th c.) | Traditional, public domain |
+
+Each new song also gets a per-song backing track (own key/tempo/mood, mixed under
+the melody) rendered by `render_backing()` in `tool/render_audio.py`.
