@@ -8,7 +8,7 @@ on:
       build_number:
         description: "TestFlight build number to submit"
         required: true
-        default: "1782280986"
+        default: "1782298372"
 
 env:
   BUNDLE_ID: id.pusakatiles.pusakatiles
