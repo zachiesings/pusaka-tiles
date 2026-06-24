@@ -1,0 +1,21 @@
+name: TestFlight Distribute
+
+# Read-only: prints the App Store version state and any in-progress review
+# submission, using the existing App Store Connect API key. Manual trigger only.
+on:
+  workflow_dispatch:
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+jobs:
+  state:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query ASC state (fastlane)
+        run: fastlane distribute

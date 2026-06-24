@@ -225,4 +225,27 @@ platform :ios do
     end
   end
 
+  desc "Push the latest build to the beta tester groups (re-notify testers)"
+  lane :distribute do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER"], key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    build = app.get_builds(limit: 1).first
+    UI.user_error!("No builds found") unless build
+    ver = (build.pre_release_version && build.pre_release_version.version) rescue "?"
+    UI.success("Latest build: #{ver} (#{build.version}) state=#{build.processing_state}")
+    groups = app.get_beta_groups
+    groups.each do |g|
+      internal = (g.is_internal_group rescue nil)
+      begin
+        build.add_beta_groups(beta_groups: [g])
+        UI.success("→ distributed to '#{g.name}' (internal=#{internal})")
+      rescue => e
+        UI.error("could not add to '#{g.name}': #{e.message}")
+      end
+    end
+    UI.success("Done — internal testers are notified now; external groups queue for Beta App Review.")
+  end
+
 end
