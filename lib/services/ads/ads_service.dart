@@ -22,6 +22,11 @@ abstract class AdsService {
   /// Warm up a rewarded ad and keep retrying in the background until one loads.
   void preloadRewarded();
 
+  /// TEMP diagnostic: human-readable last rewarded-ad lifecycle status
+  /// (e.g. "requested", "loaded", "FAIL code=3 …"). Surfaced on-screen only
+  /// while [K.adDebug] is true. Does not affect ad behaviour.
+  ValueListenable<String> get adStatus;
+
   /// Present the already-loaded rewarded ad. Resolves true ONLY if the user
   /// earned the reward (ad shown to completion). Resolves false if there is no
   /// ad, the show fails, or the user dismissed early — and grants NOTHING in
@@ -38,12 +43,16 @@ abstract class AdsService {
 /// always ready and "shown". Never used in production.
 class StubAdsService implements AdsService {
   final ValueNotifier<bool> _ready = ValueNotifier<bool>(true);
+  final ValueNotifier<String> _status = ValueNotifier<String>('stub-ready');
 
   @override
   bool get available => K.adsEnabled;
 
   @override
   ValueListenable<bool> get rewardedReady => _ready;
+
+  @override
+  ValueListenable<String> get adStatus => _status;
 
   @override
   void preloadRewarded() => _ready.value = true;

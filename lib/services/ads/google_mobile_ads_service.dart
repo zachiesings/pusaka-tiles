@@ -21,12 +21,21 @@ class GoogleMobileAdsService implements AdsService {
   bool _loading = false;
   Timer? _retry;
   final ValueNotifier<bool> _ready = ValueNotifier<bool>(false);
+  final ValueNotifier<String> _status = ValueNotifier<String>('idle');
 
   @override
   bool get available => K.adsEnabled;
 
   @override
   ValueListenable<bool> get rewardedReady => _ready;
+
+  @override
+  ValueListenable<String> get adStatus => _status;
+
+  void _setStatus(String s) {
+    _status.value = s;
+    debugPrint('[ads] $s');
+  }
 
   Future<void> _ensureInit() async {
     if (_init) return;
@@ -49,6 +58,7 @@ class GoogleMobileAdsService implements AdsService {
   void preloadRewarded() {
     if (!available || _rewarded != null || _loading) return;
     _loading = true;
+    _setStatus('requested unit=$_rewardedUnit');
     _ensureInit().then((_) {
       RewardedAd.load(
         adUnitId: _rewardedUnit,
@@ -58,18 +68,22 @@ class GoogleMobileAdsService implements AdsService {
             _rewarded = ad;
             _loading = false;
             _ready.value = true; // → button may now appear
+            _setStatus('LOADED ✓');
           },
-          onAdFailedToLoad: (_) {
+          onAdFailedToLoad: (err) {
             _rewarded = null;
             _loading = false;
             _ready.value = false; // no fill → keep the button hidden
+            // code 3 = no-fill (normal/new unit); other codes = config/network.
+            _setStatus('FAIL code=${err.code} domain=${err.domain} msg=${err.message}');
             _scheduleRetry();
           },
         ),
       );
-    }).catchError((_) {
+    }).catchError((e) {
       _loading = false;
       _ready.value = false;
+      _setStatus('INIT/LOAD EXCEPTION: $e');
       _scheduleRetry();
     });
   }

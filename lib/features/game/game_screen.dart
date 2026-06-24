@@ -280,6 +280,7 @@ class TilesGameScreen extends StatelessWidget {
                   },
                   onHome: () => Navigator.of(context).maybePop(),
                   adReady: app.ads.rewardedReady,
+                  adStatus: app.ads.adStatus,
                 ),
             ],
           ),
@@ -360,6 +361,7 @@ class _GameOverOverlay extends StatelessWidget {
   final String stageGoal;
   final VoidCallback onRevive, onRestart, onHome;
   final ValueListenable<bool> adReady; // gates the watch-ad button (2.1a)
+  final ValueListenable<String> adStatus; // TEMP diagnostic (K.adDebug)
   const _GameOverOverlay({
     required this.score,
     required this.best,
@@ -376,6 +378,7 @@ class _GameOverOverlay extends StatelessWidget {
     required this.onRestart,
     required this.onHome,
     required this.adReady,
+    required this.adStatus,
   });
 
   String get _headline {
@@ -475,7 +478,23 @@ class _GameOverOverlay extends StatelessWidget {
               ValueListenableBuilder<bool>(
                 valueListenable: adReady,
                 builder: (context, ready, _) {
-                  if (!ready) return const SizedBox.shrink();
+                  if (!ready) {
+                    // TEMP diagnostic: when no ad is ready, show why (K.adDebug).
+                    if (K.adDebug) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: ValueListenableBuilder<String>(
+                          valueListenable: adStatus,
+                          builder: (_, s, __) => Text(
+                            'iklan: $s',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Palette.goldSoft, fontSize: 11),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }
                   return Column(
                     children: [
                       SizedBox(
