@@ -1,0 +1,25 @@
+name: Delete Locale
+
+# Delete the stray en-US localization (deliver keeps re-creating it empty), then
+# list remaining locales to confirm only `id` is present. Read/delete only — no
+# deliver, so it cannot re-create en-US. Manual trigger.
+on:
+  workflow_dispatch:
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  DEL_LOCALE: en-US
+  ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+jobs:
+  del:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Delete en-US localization
+        run: fastlane del_locale
+      - name: List remaining locales
+        run: fastlane locales
