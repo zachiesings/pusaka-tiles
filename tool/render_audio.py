@@ -39,11 +39,38 @@ def sh(cmd):
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def fsynth(mid, wav, gain=0.9, room=0.5, level=0.4):
+def fsynth(mid, wav, gain=0.5, room=0.2, level=0.10):
+    # Conservative gain (0.5) + LIGHT reverb → the raw render keeps headroom and
+    # never clips internally (hot gain + heavy reverb was the "sember" cause).
     sh(["fluidsynth", "-ni", "-g", str(gain), "-F", wav, "-r", str(SR),
         "-o", "synth.reverb.active=1", "-o", f"synth.reverb.room-size={room}",
-        "-o", "synth.reverb.width=0.7", "-o", f"synth.reverb.level={level}",
+        "-o", "synth.reverb.width=0.5", "-o", f"synth.reverb.level={level}",
         SF2, mid])
+
+
+def peak_db(path):
+    """Return the true sample peak of [path] in dBFS (0 = full scale)."""
+    r = subprocess.run(["ffmpeg", "-i", path, "-af", "volumedetect", "-f", "null", "-"],
+                       stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, text=True).stderr
+    m = re.search(r"max_volume:\s*(-?\d+(?:\.\d+)?) dB", r)
+    return float(m.group(1)) if m else 0.0
+
+
+def finish(raw, out, peak=-2.0, pre="", mp3=False, bitrate="192k"):
+    """PEAK-normalise [raw] to [peak] dBFS (pure gain — no loudness target, no
+    limiter pumping), AFTER reverb, then encode. We measure the real peak and
+    scale strictly below 0 dBFS, so the result is guaranteed not to clip.
+    WAV = 44.1kHz/16-bit PCM; MP3 = 192 kbps. Returns (raw_peak, out_peak)."""
+    mv = peak_db(raw)
+    gain = peak - mv
+    af = (pre + "," if pre else "") + f"volume={gain:.2f}dB"
+    if mp3:
+        sh(["ffmpeg", "-y", "-i", raw, "-af", af, "-ar", str(SR), "-ac", "1",
+            "-c:a", "libmp3lame", "-b:a", bitrate, out])
+    else:
+        sh(["ffmpeg", "-y", "-i", raw, "-af", af, "-ar", str(SR), "-ac", "1",
+            "-c:a", "pcm_s16le", out])
+    return mv, peak_db(out)
 
 
 def tempo_track(tr, bpm):
@@ -83,26 +110,26 @@ def render_oneshots():
     for instr, prog in PROG.items():
         out_dir = os.path.join(AUD, instr)
         os.makedirs(out_dir, exist_ok=True)
-        room = 0.65 if instr in ("suling", "gamelan") else 0.45
+        # light, clean tail (a touch more air for the breathy/metallic voices)
+        room = 0.3 if instr in ("suling", "gamelan") else 0.18
+        lvl = 0.12 if instr in ("suling", "gamelan") else 0.08
         for i, note in enumerate(NOTE_MIDI):
             try:
                 mf = MidiFile(ticks_per_beat=TPB)
                 tr = MidiTrack(); mf.tracks.append(tr)
                 tempo_track(tr, 120)
                 tr.append(Message("program_change", program=prog, time=0))
-                vel = 112 if instr in ("angklung", "gamelan") else 100
+                vel = 100 if instr in ("angklung", "gamelan") else 92
                 tr.append(Message("note_on", note=note, velocity=vel, time=0))
                 tr.append(Message("note_off", note=note, velocity=0, time=int(TPB * 2.4)))
                 mid = os.path.join(out_dir, f"_n{i}.mid")
                 raw = os.path.join(out_dir, f"_n{i}.raw.wav")
                 out = os.path.join(out_dir, f"note_{i:02d}.wav")
                 mf.save(mid)
-                fsynth(mid, raw, gain=0.95, room=room, level=0.35)
-                # trim leading silence, normalise so notes cut through, keep decay tail
-                sh(["ffmpeg", "-y", "-i", raw,
-                    "-af", "silenceremove=start_periods=1:start_threshold=-50dB,"
-                           "loudnorm=I=-13:TP=-1.0:LRA=11",
-                    "-ac", "1", "-ar", str(SR), out])
+                fsynth(mid, raw, gain=0.5, room=room, level=lvl)
+                # trim leading silence, then peak-normalise to -2 dBFS (clean, no clip)
+                finish(raw, out, peak=-2.0,
+                       pre="silenceremove=start_periods=1:start_threshold=-50dB")
                 os.remove(mid); os.remove(raw)
             except Exception as e:  # leave the existing file in place on failure
                 print(f"  ! {instr} note {i} failed: {e}")
@@ -117,12 +144,12 @@ def render_oneshots():
 # ---------- SFX ----------
 def render_sfx():
     # tap: soft marimba blip
-    _simple_note(os.path.join(AUD, "tap.wav"), prog=12, note=84, dur=0.18, vel=70, room=0.3, norm=-16)
+    _simple_note(os.path.join(AUD, "tap.wav"), prog=12, note=84, dur=0.18, vel=80, room=0.18)
     # wrong: low detuned thunk (Synth Bass region)
-    _simple_note(os.path.join(AUD, "wrong.wav"), prog=38, note=40, dur=0.3, vel=90, room=0.2, norm=-14)
+    _simple_note(os.path.join(AUD, "wrong.wav"), prog=38, note=40, dur=0.3, vel=95, room=0.15)
 
 
-def _simple_note(out, prog, note, dur, vel, room=0.4, norm=-14):
+def _simple_note(out, prog, note, dur, vel, room=0.2, peak=-3.0):
     mf = MidiFile(ticks_per_beat=TPB)
     tr = MidiTrack(); mf.tracks.append(tr)
     tempo_track(tr, 120)
@@ -131,10 +158,9 @@ def _simple_note(out, prog, note, dur, vel, room=0.4, norm=-14):
     tr.append(Message("note_off", note=note, velocity=0, time=int(TPB * dur * 2)))
     mid = out + ".mid"; raw = out + ".raw.wav"
     mf.save(mid)
-    fsynth(mid, raw, gain=0.9, room=room, level=0.3)
-    sh(["ffmpeg", "-y", "-i", raw, "-af",
-        f"silenceremove=start_periods=1:start_threshold=-50dB,loudnorm=I={norm}:TP=-1.0",
-        "-ac", "1", "-ar", str(SR), out])
+    fsynth(mid, raw, gain=0.5, room=room, level=0.08)
+    finish(raw, out, peak=peak,
+           pre="silenceremove=start_periods=1:start_threshold=-50dB")
     os.remove(mid); os.remove(raw)
 
 
@@ -158,8 +184,8 @@ def render_home_bgm():
     mid = os.path.join(AUD, "bgm_home.mid"); raw = os.path.join(AUD, "bgm_home.raw.wav")
     out = os.path.join(AUD, "bgm_home.wav")
     mf.save(mid)
-    fsynth(mid, raw, gain=0.8, room=0.7, level=0.5)
-    sh(["ffmpeg", "-y", "-i", raw, "-af", "loudnorm=I=-18:TP=-2.0", "-ac", "1", "-ar", str(SR), out])
+    fsynth(mid, raw, gain=0.5, room=0.3, level=0.12)
+    finish(raw, out, peak=-3.0)  # clean WAV master; playback volume keeps it subtle
     os.remove(mid); os.remove(raw)
 
 
@@ -206,10 +232,8 @@ def render_pad():
     mid = os.path.join(AUD, "_pad.mid"); raw = os.path.join(AUD, "_pad.raw.wav")
     out = os.path.join(AUD, "backing_pad.mp3")
     mf.save(mid)
-    fsynth(mid, raw, gain=0.7, room=0.8, level=0.6)
-    # very quiet — sits far under the melody
-    sh(["ffmpeg", "-y", "-i", raw, "-af", "loudnorm=I=-26:TP=-3.0", "-ac", "1",
-        "-c:a", "libmp3lame", "-q:a", "6", out])
+    fsynth(mid, raw, gain=0.5, room=0.35, level=0.14)  # soft, clean tail
+    finish(raw, out, peak=-16.0, mp3=True, bitrate="192k")  # quiet clean master; sits far under melody
     os.remove(mid); os.remove(raw)
     print("  ambient pad: backing_pad.mp3")
 
@@ -241,10 +265,8 @@ def render_backing(songs):
         raw = os.path.join(out_dir, f"_{sid}.raw.wav")
         out = os.path.join(out_dir, f"{sid}.mp3")
         mf.save(mid)
-        fsynth(mid, raw, gain=0.7, room=0.4, level=0.3)
-        # quiet, mono, mp3 — well below the tapped melody
-        sh(["ffmpeg", "-y", "-i", raw, "-af", "loudnorm=I=-24:TP=-3.0", "-ac", "1",
-            "-c:a", "libmp3lame", "-q:a", "5", out])
+        fsynth(mid, raw, gain=0.5, room=0.25, level=0.10)  # light, clean
+        finish(raw, out, peak=-14.0, mp3=True, bitrate="192k")  # quiet clean master; under melody
         os.remove(mid); os.remove(raw)
         ok += 1
       except Exception as e:  # leave any prior file in place on failure
@@ -266,11 +288,27 @@ def main():
     os.makedirs(AUD, exist_ok=True)
     songs = parse_songs(os.path.join(ROOT, "lib", "game", "songs.dart"))
     print(f"Parsed {len(songs)} songs")
+
+    # Report OLD peak levels (clipping check) for a piano + a suling note.
+    probe = [("piano", os.path.join(AUD, "piano", "note_03.wav")),
+             ("suling", os.path.join(AUD, "suling", "note_03.wav"))]
+    for name, p in probe:
+        if os.path.exists(p):
+            print(f"OLD peak {name} note_03: {peak_db(p):.2f} dBFS (WAV)")
+
     render_oneshots()
     render_sfx()
     render_home_bgm()
     render_pad()
     render_backing(songs)
+
+    # Report NEW peak levels — should be ~-2 dBFS and never 0 (no clipping).
+    for name, p in probe:
+        if os.path.exists(p):
+            print(f"NEW peak {name} note_03: {peak_db(p):.2f} dBFS (WAV 44.1k/16-bit)")
+    bk = os.path.join(AUD, "backing", f"{songs[0][0]}.mp3") if songs else None
+    if bk and os.path.exists(bk):
+        print(f"NEW peak backing {songs[0][0]}: {peak_db(bk):.2f} dBFS (MP3 192k)")
     print("Audio render complete.")
 
 
