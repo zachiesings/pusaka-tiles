@@ -6,6 +6,11 @@ name: Render Audio
 # new audio (a GITHUB_TOKEN commit does not auto-trigger other workflows).
 on:
   workflow_dispatch:
+    inputs:
+      ab_only:
+        description: "Render only piano+suling one-shots (A/B test); leave the rest"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -24,6 +29,8 @@ jobs:
           ls -l /usr/share/sounds/sf2/
 
       - name: Render audio
+        env:
+          AB_ONLY: ${{ github.event.inputs.ab_only }}
         run: python3 tool/render_audio.py
 
       - name: Commit rendered audio

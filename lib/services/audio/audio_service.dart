@@ -98,9 +98,11 @@ class AudioService {
   }
 
   /// Play melody note by table index using the selected instrument voice.
+  /// Volume 0.6 (not 0.9) leaves headroom: the 5-voice pool overlaps rapid taps,
+  /// and hot/long notes summing past 0 dBFS was a cause of the harsh mix.
   Future<void> playNote(int index) {
     final i = index < 0 ? 0 : (index > 12 ? 12 : index);
-    return _play('audio/$instrument/note_${i.toString().padLeft(2, '0')}.wav');
+    return _play('audio/$instrument/note_${i.toString().padLeft(2, '0')}.wav', volume: 0.6);
   }
 
   Future<void> playWrong() => _play('audio/wrong.wav', volume: 0.8);

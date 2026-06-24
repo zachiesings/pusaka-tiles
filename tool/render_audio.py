@@ -107,7 +107,9 @@ def write_track(mf, events, ch_progs):
 
 # ---------- note one-shots ----------
 def render_oneshots():
-    for instr, prog in PROG.items():
+    # AB_ONLY → render just piano + suling (the A/B voices); leave the rest as-is.
+    voices = {"piano": 0, "suling": 75} if os.environ.get("AB_ONLY") else PROG
+    for instr, prog in voices.items():
         out_dir = os.path.join(AUD, instr)
         os.makedirs(out_dir, exist_ok=True)
         # light, clean tail (a touch more air for the breathy/metallic voices)
@@ -121,15 +123,19 @@ def render_oneshots():
                 tr.append(Message("program_change", program=prog, time=0))
                 vel = 100 if instr in ("angklung", "gamelan") else 92
                 tr.append(Message("note_on", note=note, velocity=vel, time=0))
-                tr.append(Message("note_off", note=note, velocity=0, time=int(TPB * 2.4)))
+                # SHORT note so rapid taps don't pile long tails into the 5-voice
+                # mix (the polyphony-clipping = "sember" cause).
+                tr.append(Message("note_off", note=note, velocity=0, time=int(TPB * 1.4)))
                 mid = os.path.join(out_dir, f"_n{i}.mid")
                 raw = os.path.join(out_dir, f"_n{i}.raw.wav")
                 out = os.path.join(out_dir, f"note_{i:02d}.wav")
                 mf.save(mid)
                 fsynth(mid, raw, gain=0.5, room=room, level=lvl)
-                # trim leading silence, then peak-normalise to -2 dBFS (clean, no clip)
-                finish(raw, out, peak=-2.0,
-                       pre="silenceremove=start_periods=1:start_threshold=-50dB")
+                # trim leading silence, cap length, fade the tail cleanly, then
+                # peak-normalise to -3 dBFS (headroom for polyphony; no clip).
+                finish(raw, out, peak=-3.0,
+                       pre="silenceremove=start_periods=1:start_threshold=-50dB,"
+                           "atrim=0:1.5,afade=t=out:st=1.05:d=0.45")
                 os.remove(mid); os.remove(raw)
             except Exception as e:  # leave the existing file in place on failure
                 print(f"  ! {instr} note {i} failed: {e}")
@@ -297,10 +303,11 @@ def main():
             print(f"OLD peak {name} note_03: {peak_db(p):.2f} dBFS (WAV)")
 
     render_oneshots()
-    render_sfx()
-    render_home_bgm()
-    render_pad()
-    render_backing(songs)
+    if not os.environ.get("AB_ONLY"):  # full render only outside A/B mode
+        render_sfx()
+        render_home_bgm()
+        render_pad()
+        render_backing(songs)
 
     # Report NEW peak levels — should be ~-2 dBFS and never 0 (no clipping).
     for name, p in probe:
