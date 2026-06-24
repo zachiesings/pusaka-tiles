@@ -9,7 +9,17 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'lib/**'
+      - 'ios/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
       - '.github/workflows/ios.yml'
+
+# Only the latest relevant push builds; older in-flight runs are cancelled.
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
 
 env:
   BUNDLE_ID: id.pusakatiles.pusakatiles
@@ -54,6 +64,22 @@ jobs:
             || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" ios/Runner/Info.plist \
             || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" ios/Runner/Info.plist
+          # SKAdNetworkItems — Google AdMob's standard ad-network ids for install
+          # attribution (recommended by AdMob; non-tracking, SKAdNetwork only).
+          /usr/libexec/PlistBuddy -c "Delete :SKAdNetworkItems" ios/Runner/Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems array" ios/Runner/Info.plist
+          i=0
+          for id in cstr6suwn9 4fzdc2evr5 4pfyvq9l8r 2fnua5tdw4 ydx93a7ass p78axxw29g \
+                    v72qych5uu ludvb6z3bs cp8zw746q7 3sh42y64q3 c6k4g5qg8m s39g8k73mm \
+                    3qy4746246 f38h382jlk hs6bdukanm v4nxqhlyqp wzmmz9fp6w su67r6k2v3 \
+                    yclnxrl5pm t38b2kh725 7ug5zh24hu gta9lk7p23 vutu7akeur y5ghdn5j9k \
+                    n6fk4nfna4 v9wttpbfk9 n38lu8286q 47vhws6wlr kbd757ywx3 9t245vhmpl \
+                    a2p9lx4jpn 22mmun2rn5 4468km3ulz 2u9pt9hc89 8s468mfl3y av6w8kgt66 \
+                    klf5c3l5u5 ppxm28t8ap 424m5254lk uw77j35x4d 578prtvx9j 4dzt52r2t5; do
+            /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:$i dict" ios/Runner/Info.plist
+            /usr/libexec/PlistBuddy -c "Add :SKAdNetworkItems:$i:SKAdNetworkIdentifier string $id.skadnetwork" ios/Runner/Info.plist
+            i=$((i+1))
+          done
 
       - name: Add privacy manifest (PrivacyInfo.xcprivacy)
         run: |

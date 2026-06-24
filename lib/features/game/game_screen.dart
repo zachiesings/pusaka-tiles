@@ -14,13 +14,19 @@ class TilesGameScreen extends StatelessWidget {
   const TilesGameScreen({super.key});
 
   Future<void> _revive(BuildContext context, TilesGameController gc, AppState app) async {
+    if (!app.ads.rewardedReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Memuat iklan…'), duration: Duration(seconds: 1)),
+      );
+    }
     final ok = await app.ads.showRewarded(RewardKind.revive);
     if (!context.mounted) return;
     if (ok) {
-      gc.reviveAfterAd();
+      gc.reviveAfterAd(); // ad watched OR no-fill fallback — always continues
     } else {
+      // The user closed the ad before finishing — not a dead button.
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iklan belum siap, coba lagi sebentar.')),
+        const SnackBar(content: Text('Iklan ditutup lebih awal — coba lagi.')),
       );
     }
   }
@@ -29,6 +35,7 @@ class TilesGameScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final gc = context.watch<TilesGameController>();
     final app = context.watch<AppState>();
+    app.ads.preloadRewarded(); // warm up the revive ad (idempotent) so the button is instant
     final e = gc.engine;
     final best = app.bestForSong(gc.song.id);
 

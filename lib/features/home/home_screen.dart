@@ -9,7 +9,6 @@ import '../../game/stage.dart';
 import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
-import '../../widgets/banner_ad.dart';
 import '../../game/tile_themes.dart';
 import '../shop/shop_screen.dart';
 import '../../widgets/gradient_button.dart';
@@ -376,7 +375,6 @@ class _BerandaTabState extends State<_BerandaTab> {
                     ],
                   ),
                 ),
-                const Center(child: BannerAdBar()),
                 const SizedBox(height: 72),
               ],
             ),

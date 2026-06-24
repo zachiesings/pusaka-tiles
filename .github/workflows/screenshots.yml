@@ -1,0 +1,108 @@
+name: iOS Screenshots
+
+# Captures REAL-gameplay App Store screenshots at iPhone 6.9" on a macOS runner
+# (via integration_test + `flutter drive`) and uploads them to App Store Connect
+# with fastlane deliver, reusing the SAME App Store Connect API key already used
+# for TestFlight uploads. The PNGs are also kept as a downloadable artifact as a
+# manual-upload fallback. The app is iPhone-only, so only the 6.9" set is needed.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'integration_test/**'
+      - 'test_driver/**'
+      - '.github/workflows/screenshots.yml'
+
+concurrency:
+  group: ios-screenshots
+  cancel-in-progress: true
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+jobs:
+  screenshots:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app 2>/dev/null || true
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Disable Swift Package Manager (google_mobile_ads is CocoaPods-only)
+        run: flutter config --no-enable-swift-package-manager
+
+      - name: Generate iOS platform folder
+        run: flutter create --org id.pusakatiles --project-name pusaka_tiles --platforms=ios .
+
+      - name: AdMob app id (so the linked SDK is happy if ever initialized)
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :GADApplicationIdentifier string ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist
+
+      - name: Flutter packages
+        run: flutter pub get
+
+      - name: Boot an iPhone 6.9" simulator
+        id: sim
+        run: |
+          DEV=""
+          for d in "iPhone 17 Pro Max" "iPhone 16 Pro Max" "iPhone 15 Pro Max"; do
+            if xcrun simctl list devicetypes | grep -q "$d"; then DEV="$d"; break; fi
+          done
+          echo "Using device type: $DEV"
+          UDID=$(xcrun simctl create "screens69" "$DEV")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b || true
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Capture screenshots (flutter drive)
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/screenshots_test.dart \
+            -d ${{ steps.sim.outputs.udid }}
+
+      - name: List captured PNGs
+        if: always()
+        run: ls -la screenshots || echo "no screenshots produced"
+
+      - name: Upload screenshots artifact (fallback for manual upload)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pusaka-tiles-screenshots-6.9
+          path: screenshots/*.png
+          if-no-files-found: warn
+
+      - name: Upload to App Store Connect (fastlane deliver)
+        run: |
+          mkdir -p fastlane/screenshots/en-US
+          cp screenshots/*.png fastlane/screenshots/en-US/ 2>/dev/null || true
+          python3 - <<'PY'
+          import json, os
+          json.dump({
+              "key_id": os.environ["ASC_KEY_ID"],
+              "issuer_id": os.environ["ASC_ISSUER"],
+              "key": os.environ["ASC_KEY"],
+              "in_house": False,
+          }, open("asc_key.json", "w"))
+          PY
+          fastlane deliver \
+            --api_key_path asc_key.json \
+            --app_identifier "$BUNDLE_ID" \
+            --skip_binary_upload true \
+            --skip_metadata true \
+            --screenshots_path fastlane/screenshots \
+            --overwrite_screenshots true \
+            --run_precheck_before_submit false \
+            --force true
