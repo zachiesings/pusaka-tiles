@@ -130,6 +130,9 @@ class AppState extends ChangeNotifier {
   void startHomeMusic() => audio.startBgm();
   void stopHomeMusic() => audio.stopBgm();
 
+  void startSongBacking(String songId) => audio.startBacking(songId);
+  void stopSongBacking() => audio.stopBacking();
+
   /// Show an interstitial on roughly every 2nd game-over (called on restart).
   Future<void> maybeShowInterstitial() async {
     _overCount++;

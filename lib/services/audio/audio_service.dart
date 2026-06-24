@@ -8,8 +8,11 @@ class AudioService {
   bool enabled = true;
 
   final AudioPlayer _bgm = AudioPlayer();
+  final AudioPlayer _backing = AudioPlayer(); // per-song groove bed under gameplay
   bool musicEnabled = true;
   bool _bgmPlaying = false;
+  bool _backingPlaying = false;
+  String? _backingSong;
   String instrument = 'piano'; // selected traditional voice folder
 
   AudioService({int voices = 5}) : _pool = List.generate(voices, (_) => AudioPlayer()) {
@@ -18,6 +21,30 @@ class AudioService {
       p.setPlayerMode(PlayerMode.lowLatency);
     }
     _bgm.setReleaseMode(ReleaseMode.loop);
+    _backing.setReleaseMode(ReleaseMode.loop);
+  }
+
+  /// Start the song's humanized backing bed (loops, sits low so the tapped
+  /// melody stays on top). No-op if music is off or already playing this song.
+  Future<void> startBacking(String songId) async {
+    if (!musicEnabled) return;
+    if (_backingPlaying && _backingSong == songId) return;
+    _backingSong = songId;
+    _backingPlaying = true;
+    try {
+      await _backing.stop();
+      await _backing.play(AssetSource('audio/backing/$songId.mp3'), volume: 0.42);
+    } catch (_) {
+      _backingPlaying = false; // bed missing (render skipped) → melody-only, fine
+    }
+  }
+
+  Future<void> stopBacking() async {
+    _backingPlaying = false;
+    _backingSong = null;
+    try {
+      await _backing.stop();
+    } catch (_) {}
   }
 
   /// Start the looping home background music (gamelan). No-op if music is off.
@@ -40,7 +67,10 @@ class AudioService {
 
   void setMusicEnabled(bool v) {
     musicEnabled = v;
-    if (!v) stopBgm();
+    if (!v) {
+      stopBgm();
+      stopBacking();
+    }
   }
 
   Future<void> _play(String asset, {double volume = 0.9}) async {
@@ -69,5 +99,6 @@ class AudioService {
       p.dispose();
     }
     _bgm.dispose();
+    _backing.dispose();
   }
 }

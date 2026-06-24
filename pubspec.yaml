@@ -38,6 +38,7 @@ flutter:
     - assets/audio/angklung/
     - assets/audio/gamelan/
     - assets/audio/suling/
+    - assets/audio/backing/
   fonts:
     - family: Jakarta
       fonts:

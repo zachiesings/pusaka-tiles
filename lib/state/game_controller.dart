@@ -76,6 +76,9 @@ class TilesGameController extends ChangeNotifier {
     _scored = false;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
+    // Swap home gendhing → this song's humanized backing bed (under gameplay).
+    app.stopHomeMusic();
+    app.startSongBacking(song.id);
   }
 
   void restart() {
@@ -219,6 +222,9 @@ class TilesGameController extends ChangeNotifier {
   @override
   void dispose() {
     _ticker?.dispose();
+    // Leaving the game: stop the backing bed and bring the home gendhing back.
+    app.stopSongBacking();
+    app.startHomeMusic();
     super.dispose();
   }
 }

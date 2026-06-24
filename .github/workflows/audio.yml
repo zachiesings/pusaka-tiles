@@ -1,0 +1,46 @@
+name: Render Audio
+
+# Renders sampled-instrument audio from the FluidR3_GM SoundFont (Debian main,
+# free/redistributable) via fluidsynth + mido, then commits the WAV/MP3 assets.
+# Manual trigger. After it commits, dispatch "iOS TestFlight" to build with the
+# new audio (a GITHUB_TOKEN commit does not auto-trigger other workflows).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install fluidsynth + FluidR3_GM SoundFont + ffmpeg + mido
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fluidsynth fluid-soundfont-gm ffmpeg
+          python3 -m pip install --break-system-packages --quiet mido
+          ls -l /usr/share/sounds/sf2/
+
+      - name: Render audio
+        run: python3 tool/render_audio.py
+
+      - name: Commit rendered audio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/audio
+          if git diff --cached --quiet; then
+            echo "No audio changes to commit."
+          else
+            git commit -m "chore(audio): render sampled instruments + backing beds (FluidR3_GM)"
+            git push
+          fi
+
+      - name: Audio asset summary
+        if: always()
+        run: |
+          echo "=== rendered audio ==="
+          find assets/audio -type f \( -name '*.wav' -o -name '*.mp3' \) | sort
+          du -sh assets/audio || true
