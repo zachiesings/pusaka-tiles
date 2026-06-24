@@ -156,4 +156,30 @@ platform :ios do
       },
     )
   end
+
+  desc "Read-only: list edit-version localizations + metadata/screenshot presence"
+  lane :locales do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER"], key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    UI.success("APP #{app.name} primary_locale=#{app.primary_locale}")
+    platform = Spaceship::ConnectAPI::Platform::IOS
+    ver = app.get_edit_app_store_version(platform: platform)
+    UI.success("EDIT VERSION #{ver&.version_string} state=#{ver&.app_store_state}")
+    locs = ver.get_app_store_version_localizations
+    locs.each do |l|
+      desc = l.description.to_s.strip
+      kw = l.keywords.to_s.strip
+      shots = 0
+      begin
+        sets = l.get_app_screenshot_sets
+        sets.each { |s| shots += (s.app_screenshots || []).size }
+      rescue => e
+        shots = "err:#{e.message}"
+      end
+      UI.important("locale=#{l.locale} desc=#{desc.empty? ? 'MISSING' : desc.length.to_s+'ch'} kw=#{kw.empty? ? 'MISSING' : 'ok'} support=#{l.support_url.inspect} shots=#{shots}")
+    end
+  end
+
 end
