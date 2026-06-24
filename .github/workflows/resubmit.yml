@@ -13,7 +13,7 @@ on:
 env:
   BUNDLE_ID: id.pusakatiles.pusakatiles
   BUILD_NUMBER: ${{ github.event.inputs.build_number }}
-  REVIEW_NOTE: "The watch-ad button now appears only after a rewarded ad has finished loading; tapping it always presents the ad. If no ad is available the button is hidden and the user continues normally. AdMob configuration verified."
+  REVIEW_NOTE: "Pusaka Tiles is a 4-lane rhythm/music game (tap falling tiles to play Indonesian folk songs and public-domain classical pieces) - a different genre, codebase, mascot, and visual identity from our block-puzzle title. We have given it its own character, layout, fonts, and content."
   ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
   ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
   ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}

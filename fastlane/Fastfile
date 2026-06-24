@@ -273,4 +273,70 @@ platform :ios do
     UI.success("Done — internal testers are notified now; external groups queue for Beta App Review.")
   end
 
+  desc "Upload NEW metadata (id locale) — no binary, no screenshots, NO submit (staging)"
+  lane :meta do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER"],
+      key_content: ENV["ASC_KEY"],
+      is_key_content_base64: false,
+      in_house: false,
+    )
+    deliver(
+      api_key: api_key,
+      app_identifier: ENV["BUNDLE_ID"],
+      metadata_path: "fastlane/metadata",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: false,
+      submit_for_review: false,        # STAGE ONLY — do not submit
+      force: true,
+      run_precheck_before_submit: false,
+    )
+  end
+
+  desc "Set the App Review note from REVIEW_NOTE (no submit); report contact-info completeness"
+  lane :set_note do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER"], key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    platform = Spaceship::ConnectAPI::Platform::IOS
+    ver = app.get_edit_app_store_version(platform: platform)
+    note = ENV["REVIEW_NOTE"].to_s
+    existing = nil
+    begin
+      resp = Spaceship::ConnectAPI.get_app_store_review_detail(app_store_version_id: ver.id)
+      existing = resp.to_models.first
+    rescue StandardError
+      existing = nil
+    end
+    if existing
+      Spaceship::ConnectAPI.patch_app_store_review_detail(
+        app_store_review_detail_id: existing.id, attributes: { notes: note })
+      UI.success("App Review note set (patched; contact info preserved).")
+    else
+      Spaceship::ConnectAPI.post_app_store_review_detail(
+        app_store_version_id: ver.id, attributes: { notes: note })
+      UI.important("Created review detail with note only.")
+    end
+    # Report contact-info completeness (best-effort; we do not invent values).
+    begin
+      d = Spaceship::ConnectAPI.get_app_store_review_detail(app_store_version_id: ver.id).to_models.first
+      fn = (d.contact_first_name rescue nil)
+      ln = (d.contact_last_name rescue nil)
+      ph = (d.contact_phone rescue nil)
+      em = (d.contact_email rescue nil)
+      UI.important("CONTACT first=#{fn.inspect} last=#{ln.inspect} phone=#{ph.inspect} email=#{em.inspect}")
+      missing = [fn, ln, ph, em].any? { |v| v.to_s.strip.empty? }
+      if missing
+        UI.error("CONTACT INFO INCOMPLETE — complete App Review Information in ASC before submit.")
+      else
+        UI.success("CONTACT INFO complete — submit will not fail on contact info.")
+      end
+    rescue StandardError => e
+      UI.error("Could not read contact info: #{e.message}")
+    end
+  end
+
 end

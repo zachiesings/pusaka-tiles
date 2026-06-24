@@ -1,0 +1,85 @@
+name: Stage Resubmission (no submit)
+
+# Stages the App Store resubmission WITHOUT submitting: recapture fresh gameplay
+# screenshots from the redesigned app, place them in the PRIMARY locale (id),
+# delete any stray en-US localization, upload screenshots + new metadata, and set
+# the App Review note. Does NOT submit — run "Force Resubmit" later to submit.
+on:
+  workflow_dispatch:
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+  REVIEW_NOTE: "Pusaka Tiles is a 4-lane rhythm/music game (tap falling tiles to play Indonesian folk songs and public-domain classical pieces) - a different genre, codebase, mascot, and visual identity from our block-puzzle title. We have given it its own character, layout, fonts, and content."
+
+jobs:
+  stage:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app 2>/dev/null || true
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Disable Swift Package Manager (google_mobile_ads is CocoaPods-only)
+        run: flutter config --no-enable-swift-package-manager
+      - name: Generate iOS platform folder
+        run: flutter create --org id.pusakatiles --project-name pusaka_tiles --platforms=ios .
+      - name: AdMob app id
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :GADApplicationIdentifier string ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist \
+            || /usr/libexec/PlistBuddy -c "Set :GADApplicationIdentifier ca-app-pub-1298950542115439~5727995049" ios/Runner/Info.plist
+      - name: Flutter packages
+        run: flutter pub get
+      - name: Boot an iPhone 6.9" simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (17|16|15) Pro Max \(" \
+                 | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | head -1)
+          if [ -z "$UDID" ]; then
+            for d in "iPhone 17 Pro Max" "iPhone 16 Pro Max" "iPhone 15 Pro Max"; do
+              if xcrun simctl list devicetypes | grep -q "$d"; then UDID=$(xcrun simctl create "screens69" "$d"); break; fi
+            done
+          fi
+          echo "Using simulator: $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b || true
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: Capture screenshots (flutter drive)
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/screenshots_test.dart \
+            -d ${{ steps.sim.outputs.udid }}
+      - name: List captured PNGs
+        if: always()
+        run: ls -la screenshots || echo "no screenshots produced"
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pusaka-tiles-screenshots-id
+          path: screenshots/*.png
+          if-no-files-found: warn
+      - name: Place screenshots in primary locale (id)
+        run: |
+          rm -rf fastlane/screenshots
+          mkdir -p fastlane/screenshots/id
+          cp screenshots/*.png fastlane/screenshots/id/
+      - name: Delete stray en-US localization
+        env:
+          DEL_LOCALE: en-US
+        run: fastlane del_locale
+      - name: Upload screenshots to id locale (replace old)
+        run: fastlane screens
+      - name: Upload NEW metadata (id) — no submit
+        run: fastlane meta
+      - name: Set App Review note (no submit)
+        run: fastlane set_note
+      - name: Report locales + metadata state
+        run: fastlane locales
