@@ -11,6 +11,7 @@ import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../game/tile_themes.dart';
 import '../shop/shop_screen.dart';
+import '../songs/song_select_screen.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/home_decor.dart';
 import '../../widgets/mascot.dart';
@@ -232,6 +233,9 @@ class _BerandaTabState extends State<_BerandaTab> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final all = SongCatalog.all;
+    final doy = DateTime.now().difference(DateTime(DateTime.now().year)).inDays;
+    final daily = all[doy % all.length];
     return BatikBackground(
       child: Stack(
         children: [
@@ -240,6 +244,7 @@ class _BerandaTabState extends State<_BerandaTab> {
           SafeArea(
             child: Column(
               children: [
+                // ---- Clean header (coins + music) ----
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 6, 14, 0),
                   child: _TopBar(
@@ -248,131 +253,45 @@ class _BerandaTabState extends State<_BerandaTab> {
                     onMusic: () => app.setMusic(!app.music),
                   ),
                 ),
-                const TilesMascot(size: 94, mood: MascotMood.idle),
-                const SizedBox(height: 2),
-                const ShimmerSweep(
-                  child: DisplayText('PUSAKA TILES', size: 30, weight: 800, letterSpacing: 3),
-                ),
-                const SizedBox(height: 3),
-                Text('Ketuk ubin, mainkan lagu daerah',
-                    style: TextStyle(
-                        color: Palette.cream.withOpacity(0.6),
-                        letterSpacing: 0.5,
-                        fontSize: 12)),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _CampaignHerald(
-                    unlocked: app.campaignUnlocked,
-                    stars: app.totalStars,
-                    complete: app.campaignComplete,
-                    onTap: widget.onOpenAdventure,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Mode + instrument selectors
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  children: GameMode.values.map((m) {
-                    final sel = _mode == m;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: GestureDetector(
-                        onTap: () => setState(() => _mode = m),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: sel ? Palette.gold : Palette.panel,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(kModeParams[m]!.label,
-                              style: TextStyle(
-                                  color: sel ? Palette.ink : Palette.cream,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13)),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 34,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(right: 4, top: 6),
-                        child: Icon(Icons.music_note_rounded, color: Palette.teal, size: 18),
-                      ),
-                      ...K.instruments.map((e) {
-                        final sel = app.instrument == e.key;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          child: GestureDetector(
-                            onTap: () => app.setInstrument(e.key),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: sel ? Palette.teal : Palette.panelHi.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(e.value,
-                                  style: TextStyle(
-                                      color: sel ? Palette.ink : Palette.cream,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700)),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
+                // ---- Spacious hero + primary actions ----
                 Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                    itemCount: SongCatalog.all.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final s = SongCatalog.all[i];
-                      return _SongCard(
-                        song: s,
-                        best: app.bestForSong(s.id),
-                        stars: app.bestStars(s.id),
-                        accent: TileTheme.active[i % TileTheme.active.length],
-                        onTap: () => _play(context, s),
-                      );
-                    },
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        const TilesMascot(size: 136, mood: MascotMood.idle),
+                        const SizedBox(height: 6),
+                        const ShimmerSweep(
+                          child: DisplayText('PUSAKA TILES', size: 32, weight: 800, letterSpacing: 3),
+                        ),
+                        const SizedBox(height: 6),
+                        Text('Ketuk ubin, mainkan lagu daerah',
+                            style: TextStyle(
+                                color: Palette.cream.withOpacity(0.6),
+                                letterSpacing: 0.5,
+                                fontSize: 13)),
+                        const SizedBox(height: 32),
+                        // PRIMARY CTA → dedicated song-select screen
+                        _MainCta(
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const SongSelectScreen())),
+                        ),
+                        const SizedBox(height: 16),
+                        // Daily hook — song of the day
+                        _DailyCard(song: daily, onTap: () => _play(context, daily)),
+                        const SizedBox(height: 16),
+                        // Campaign (secondary)
+                        _CampaignHerald(
+                          unlocked: app.campaignUnlocked,
+                          stars: app.totalStars,
+                          complete: app.campaignComplete,
+                          onTap: widget.onOpenAdventure,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _MiniButton(
-                          icon: Icons.palette_rounded,
-                          label: 'Toko Tema',
-                          onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const ShopScreen())),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MiniButton(
-                          icon: Icons.emoji_events_rounded,
-                          label: 'Pencapaian',
-                          onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const AchievementsScreen())),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 72),
               ],
             ),
           ),
@@ -560,6 +479,98 @@ class _MiniButton extends StatelessWidget {
   }
 }
 
+/// The big primary "MAIN" call-to-action on the decluttered home.
+class _MainCta extends StatelessWidget {
+  final VoidCallback onTap;
+  const _MainCta({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          gradient: Palette.brand,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: Palette.glow(Palette.violet, blur: 24, a: 0.45),
+        ),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.play_arrow_rounded, color: Palette.cream, size: 30),
+              const SizedBox(width: 8),
+              Text('MAIN',
+                  style: Typo.h1.copyWith(color: Palette.cream, fontSize: 22, letterSpacing: 2)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Lagu Hari Ini" — a daily hook (song of the day, rotates by date).
+class _DailyCard extends StatelessWidget {
+  final Song song;
+  final VoidCallback onTap;
+  const _DailyCard({required this.song, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Palette.teal.withOpacity(0.28), Palette.panel.withOpacity(0.9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Palette.teal.withOpacity(0.5)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(color: Palette.teal.withOpacity(0.25), shape: BoxShape.circle),
+              child: const Icon(Icons.today_rounded, color: Palette.teal),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('LAGU HARI INI',
+                      style: Typo.small.copyWith(
+                          color: Palette.teal,
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 10)),
+                  const SizedBox(height: 2),
+                  Text(song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Typo.title.copyWith(color: Palette.cream, fontSize: 16)),
+                  Text(song.daerah,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Typo.small.copyWith(color: Palette.cream.withOpacity(0.5))),
+                ],
+              ),
+            ),
+            const Icon(Icons.play_circle_fill_rounded, color: Palette.teal, size: 34),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ===========================================================================
 // Profil tab — lifetime stats + menu shortcuts.
 // ===========================================================================
@@ -615,6 +626,28 @@ class _ProfilTab extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniButton(
+                    icon: Icons.palette_rounded,
+                    label: 'Toko Tema',
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ShopScreen())),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _MiniButton(
+                    icon: Icons.emoji_events_rounded,
+                    label: 'Pencapaian',
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AchievementsScreen())),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
