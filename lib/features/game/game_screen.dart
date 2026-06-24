@@ -9,6 +9,7 @@ import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/mascot.dart';
+import '../../widgets/tiles_mascot.dart';
 import '../../widgets/tiles_board.dart';
 
 class TilesGameScreen extends StatelessWidget {
@@ -619,7 +620,7 @@ class _FeverCinematic extends StatelessWidget {
             alignment: const Alignment(0, 0.78),
             child: Opacity(
               opacity: 0.92,
-              child: MascotView(size: 78, mood: MascotMood.cheer),
+              child: TilesMascot(size: 96, mood: MascotMood.cheer),
             ),
           ),
         ],

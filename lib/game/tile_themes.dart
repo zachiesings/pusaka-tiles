@@ -50,6 +50,48 @@ class TileThemeCatalog {
       cost: 600,
       colors: [Color(0xFF1E5A8A), Color(0xFF2FA987), Color(0xFF3A8FC4), Color(0xFF14406A)],
     ),
+    TileTheme(
+      id: 'batiktulis',
+      name: 'Batik Tulis',
+      desc: 'Sogan & nila klasik tulisan tangan.',
+      cost: 750,
+      colors: [Color(0xFF8A4B2F), Color(0xFF2C4A6E), Color(0xFFC8923A), Color(0xFF5E6B3A)],
+    ),
+    TileTheme(
+      id: 'senja',
+      name: 'Senja Nusantara',
+      desc: 'Gradasi jingga–ungu langit senja.',
+      cost: 900,
+      colors: [Color(0xFFE8693C), Color(0xFFC9456E), Color(0xFF7E55C6), Color(0xFFF2A24B)],
+    ),
+    TileTheme(
+      id: 'candi',
+      name: 'Candi Purba',
+      desc: 'Batu candi, lumut, & emas kuno.',
+      cost: 1100,
+      colors: [Color(0xFF6E7468), Color(0xFF3F7A6A), Color(0xFFB59A52), Color(0xFF4A4A42)],
+    ),
+    TileTheme(
+      id: 'rimba',
+      name: 'Rimba Zamrud',
+      desc: 'Hijau hutan tropis yang rimbun.',
+      cost: 1300,
+      colors: [Color(0xFF2E8B57), Color(0xFF1F6E4A), Color(0xFF7FBF4D), Color(0xFF0F4D3A)],
+    ),
+    TileTheme(
+      id: 'naga',
+      name: 'Naga Merah',
+      desc: 'Merah keraton, emas, & arang.',
+      cost: 1600,
+      colors: [Color(0xFFC02A36), Color(0xFFE0A93A), Color(0xFF7A1F2B), Color(0xFF2A2226)],
+    ),
+    TileTheme(
+      id: 'kristal',
+      name: 'Kristal Es',
+      desc: 'Sian beku, putih, & nila kristal.',
+      cost: 2000,
+      colors: [Color(0xFF53C6D4), Color(0xFFEAF6FF), Color(0xFF6C7BD6), Color(0xFF2E7C8A)],
+    ),
   ];
 
   static TileTheme byId(String id) =>

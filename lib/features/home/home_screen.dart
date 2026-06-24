@@ -14,10 +14,10 @@ import '../shop/shop_screen.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/home_decor.dart';
 import '../../widgets/mascot.dart';
+import '../../widgets/tiles_mascot.dart';
 import '../../widgets/soft_card.dart';
 import '../../widgets/display_text.dart';
 import '../../widgets/effects.dart';
-import '../../widgets/roaming_mascot.dart';
 import '../game/game_screen.dart';
 import '../settings/settings_screen.dart';
 import '../about/about_screen.dart';
@@ -237,9 +237,6 @@ class _BerandaTabState extends State<_BerandaTab> {
         children: [
           const Positioned(top: 0, left: 0, right: 0, child: StageCurtain()),
           const Positioned.fill(child: SparkleField(count: 20)),
-          const Positioned(
-              left: 0, right: 0, bottom: 70, height: 96,
-              child: IgnorePointer(child: RoamingMascot(size: 56, period: 18))),
           SafeArea(
             child: Column(
               children: [
@@ -251,7 +248,7 @@ class _BerandaTabState extends State<_BerandaTab> {
                     onMusic: () => app.setMusic(!app.music),
                   ),
                 ),
-                const MascotView(size: 86, mood: MascotMood.idle),
+                const TilesMascot(size: 94, mood: MascotMood.idle),
                 const SizedBox(height: 2),
                 const ShimmerSweep(
                   child: DisplayText('PUSAKA TILES', size: 30, weight: 800, letterSpacing: 3),
