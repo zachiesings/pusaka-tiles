@@ -37,70 +37,85 @@ class TilesGameScreen extends StatelessWidget {
             children: [
               Column(
                 children: [
-                  // HUD
+                  // ---- Top bar: back · song · live accuracy ----
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(2, 2, 14, 0),
                     child: Row(
                       children: [
                         IconButton(
                           onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(Icons.arrow_back_ios_new, color: Palette.cream),
+                          icon: const Icon(Icons.arrow_back_ios_new, color: Palette.cream, size: 18),
+                          visualDensity: VisualDensity.compact,
                         ),
-                        // Little dancer that hops on every correct tap
-                        MascotView(
-                          size: 56,
-                          mood: gc.flashT > 0.3 ? MascotMood.happy : MascotMood.idle,
-                        ),
-                        const SizedBox(width: 6),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(gc.song.title,
-                                  style: const TextStyle(
-                                      color: Palette.cream, fontWeight: FontWeight.w800)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Typo.title.copyWith(color: Palette.cream)),
                               Text(gc.song.daerah,
-                                  style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Typo.small.copyWith(color: Palette.goldSoft)),
                             ],
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              transitionBuilder: (child, anim) =>
-                                  ScaleTransition(scale: anim, child: child),
-                              child: Text('${gc.points}',
-                                  key: ValueKey<int>(gc.points),
-                                  style: TextStyle(
-                                      color: gc.feverActive ? Palette.pink : Palette.gold,
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w900)),
-                            ),
-                            if (gc.combo > 1)
-                              Text('Combo ${gc.combo}',
-                                  style: const TextStyle(
-                                      color: Palette.cream, fontSize: 12, fontWeight: FontWeight.w700))
-                            else
-                              Text('Terbaik $best',
-                                  style: const TextStyle(color: Palette.goldSoft, fontSize: 12)),
-                          ],
-                        ),
+                        const SizedBox(width: 10),
+                        _AccuracyChip(perfect: gc.perfectCount, total: gc.totalTaps),
                       ],
                     ),
                   ),
-                  // Fever meter
+                  // ---- Score (big, kinetic count-up) + combo pill ----
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: gc.feverActive ? (gc.feverTimeLeft / 6).clamp(0.0, 1.0) : gc.feverMeter,
-                        minHeight: 6,
-                        backgroundColor: Palette.panel,
-                        color: gc.feverActive ? Palette.pink : Palette.teal,
-                      ),
+                    padding: const EdgeInsets.only(top: 4, bottom: 2),
+                    child: Column(
+                      children: [
+                        TweenAnimationBuilder<double>(
+                          tween: Tween<double>(end: gc.points.toDouble()),
+                          duration: const Duration(milliseconds: 320),
+                          curve: Curves.easeOut,
+                          builder: (_, v, __) => Text(
+                            v.round().toString(),
+                            style: Typo.score.copyWith(
+                              color: gc.feverActive ? Palette.pink : Palette.gold,
+                              shadows: [
+                                Shadow(
+                                    color: (gc.feverActive ? Palette.pink : Palette.gold)
+                                        .withOpacity(0.45),
+                                    blurRadius: 18),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        _ComboPill(combo: gc.combo, best: best, fever: gc.feverActive),
+                      ],
+                    ),
+                  ),
+                  // ---- Fever meter (slim, labelled) ----
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.local_fire_department_rounded,
+                            size: 14, color: gc.feverActive ? Palette.pink : Palette.teal),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: gc.feverActive
+                                  ? (gc.feverTimeLeft / 6).clamp(0.0, 1.0)
+                                  : gc.feverMeter,
+                              minHeight: 7,
+                              backgroundColor: Palette.panel,
+                              color: gc.feverActive ? Palette.pink : Palette.teal,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   // Campaign objective bar (only when playing a stage)
@@ -176,88 +191,35 @@ class TilesGameScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              // Timing judgment popup (fades with flashT)
+              // ---- Per-tap judgment (PERFECT / GREAT / GOOD), near the hit-line ----
               if (gc.flashT > 0.05 && gc.lastJudge > 0 && !e.gameOver)
                 IgnorePointer(
-                  child: Center(
+                  child: Align(
+                    alignment: const Alignment(0, 0.42),
                     child: Opacity(
                       opacity: gc.flashT.clamp(0.0, 1.0),
                       child: Transform.scale(
-                        scale: 0.7 + gc.flashT * 0.5,
-                        child: Text(
-                          gc.lastJudge == 3
-                              ? 'PERFECT!'
+                        scale: 0.85 + gc.flashT * 0.35,
+                        child: Builder(builder: (_) {
+                          final c = gc.lastJudge == 3
+                              ? Palette.gold
                               : gc.lastJudge == 2
-                                  ? 'GOOD'
-                                  : 'Telat',
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                            color: gc.lastJudge == 3
-                                ? Palette.gold
-                                : gc.lastJudge == 2
-                                    ? Palette.teal
-                                    : Palette.cream.withOpacity(0.6),
-                          ),
-                        ),
+                                  ? Palette.teal
+                                  : Palette.cyan;
+                          return Text(
+                            gc.lastJudge == 3 ? 'PERFECT' : gc.lastJudge == 2 ? 'GREAT' : 'GOOD',
+                            style: Typo.judge.copyWith(
+                              color: c,
+                              shadows: [Shadow(color: c.withOpacity(0.55), blurRadius: 18)],
+                            ),
+                          );
+                        }),
                       ),
                     ),
                   ),
                 ),
-              // Combo counter
-              if (gc.combo >= 3 && !e.gameOver)
-                IgnorePointer(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 108),
-                      child: Transform.scale(
-                        scale: 1 + (gc.combo.clamp(0, 12)) * 0.04,
-                        child: Text('COMBO ${gc.combo}',
-                            style: TextStyle(
-                                color: gc.feverActive ? Palette.pink : Palette.cyan,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1)),
-                      ),
-                    ),
-                  ),
-                ),
-              // Fever: pulsing pink edge-glow vignette around the whole screen
-              if (gc.feverActive && !e.gameOver)
-                IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: Alignment.center,
-                        radius: 1.0,
-                        colors: [
-                          Colors.transparent,
-                          Palette.pink.withOpacity(
-                              0.16 + 0.12 * (0.5 + 0.5 * math.sin(gc.feverTimeLeft * 6))),
-                        ],
-                        stops: const [0.62, 1.0],
-                      ),
-                    ),
-                    child: const SizedBox.expand(),
-                  ),
-                ),
-              if (gc.feverActive && !e.gameOver)
-                IgnorePointer(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 70),
-                      child: Transform.scale(
-                        scale: 1 + 0.08 * (0.5 + 0.5 * math.sin(gc.feverTimeLeft * 8)),
-                        child: const Text('🔥 FEVER ×2',
-                            style: TextStyle(
-                                color: Palette.pink, fontSize: 18, fontWeight: FontWeight.w900)),
-                      ),
-                    ),
-                  ),
-                ),
+              // ---- FEVER cinematic: full-screen state + particle storm + entrance ----
+              if (gc.feverActive && !e.gameOver) _FeverCinematic(gc: gc),
               if (e.gameOver || e.completed)
                 _GameOverOverlay(
                   score: gc.points,
@@ -535,4 +497,163 @@ class _GameOverOverlay extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────── in-game HUD pieces ───────────────────────────
+
+/// Live perfect-accuracy chip (top-right of the HUD).
+class _AccuracyChip extends StatelessWidget {
+  final int perfect, total;
+  const _AccuracyChip({required this.perfect, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final acc = total == 0 ? 0 : (100 * perfect / total).round();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: Palette.panel.withOpacity(0.65),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Palette.gold.withOpacity(0.25)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text('$acc%', style: Typo.chip.copyWith(color: Palette.gold, fontSize: 16)),
+          Text('AKURASI',
+              style: Typo.small.copyWith(color: Palette.cream.withOpacity(0.5), fontSize: 8.5)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Combo pill under the score — scales/pulses, pops on 10/25/50/100 milestones.
+class _ComboPill extends StatelessWidget {
+  final int combo, best;
+  final bool fever;
+  const _ComboPill({required this.combo, required this.best, required this.fever});
+
+  @override
+  Widget build(BuildContext context) {
+    if (combo < 2) {
+      return Text('Terbaik  $best', style: Typo.small.copyWith(color: Palette.goldSoft));
+    }
+    final milestone = combo == 10 || combo == 25 || combo == 50 || combo == 100;
+    final c = fever ? Palette.pink : Palette.cyan;
+    final scale = 1.0 + (combo.clamp(0, 50)) * 0.004 + (milestone ? 0.2 : 0.0);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: scale),
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      builder: (_, s, __) => Transform.scale(
+        scale: s,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          decoration: BoxDecoration(
+            color: c.withOpacity(0.16),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: c.withOpacity(0.5)),
+          ),
+          child: Text('$combo  COMBO', style: Typo.combo.copyWith(color: c, fontSize: 15)),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────── FEVER cinematic ───────────────────────────
+
+/// Full-screen Fever payoff: color-grade overlay + particle storm + a big
+/// animated "FEVER!" entrance + a beat-synced pulse + a cheering mascot.
+class _FeverCinematic extends StatelessWidget {
+  final TilesGameController gc;
+  const _FeverCinematic({required this.gc});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = gc.feverTimeLeft;                       // counts 6 → 0
+    final entrance = ((6 - t) / 0.5).clamp(0.0, 1.0); // 0→1 over the first 0.5s
+    final pulse = 0.5 + 0.5 * math.sin(t * 9);        // beat-ish pulse
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.1,
+                  colors: [
+                    Palette.violet.withOpacity(0.10 + 0.06 * pulse),
+                    Palette.pink.withOpacity(0.20 + 0.12 * pulse),
+                  ],
+                  stops: const [0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(child: CustomPaint(painter: _FeverFxPainter(t))),
+          Align(
+            alignment: const Alignment(0, -0.42),
+            child: Opacity(
+              opacity: (entrance * 1.4).clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: (1.9 - entrance * 0.9) * (1 + 0.04 * pulse),
+                child: Text('FEVER!',
+                    style: Typo.fever.copyWith(
+                      color: Palette.pink,
+                      shadows: [
+                        Shadow(color: Palette.pink.withOpacity(0.6), blurRadius: 24),
+                        const Shadow(color: Palette.cream, blurRadius: 2),
+                      ],
+                    )),
+              ),
+            ),
+          ),
+          Align(
+            alignment: const Alignment(0, 0.78),
+            child: Opacity(
+              opacity: 0.92,
+              child: MascotView(size: 78, mood: MascotMood.cheer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeverFxPainter extends CustomPainter {
+  final double t;
+  _FeverFxPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    for (var i = 0; i < 44; i++) {
+      final seed = i * 0.6180339887;
+      final x = w * ((seed * 7.13) % 1.0);
+      final speed = 50 + (i % 5) * 34.0;
+      final y = h - (((6 - t) * speed + i * 41.0) % (h + 60));
+      final r = 1.4 + (i % 3) * 1.1;
+      final col = (i % 3 == 0)
+          ? Palette.pink
+          : (i % 3 == 1)
+              ? Palette.gold
+              : Palette.violet;
+      final tw = 0.4 + 0.6 * (0.5 + 0.5 * math.sin(t * 3 + i));
+      canvas.drawCircle(
+        Offset(x, y),
+        r,
+        Paint()
+          ..color = col.withOpacity(0.5 * tw)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FeverFxPainter old) => old.t != t;
 }

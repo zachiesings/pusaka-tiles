@@ -40,6 +40,11 @@ flutter:
     - assets/audio/suling/
     - assets/audio/backing/
   fonts:
+    # Outfit — modern geometric display face (OFL) for score/combo/headers.
+    # Variable wght axis; Flutter maps fontWeight onto it.
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit.ttf
     - family: Jakarta
       fonts:
         - asset: assets/fonts/PlusJakartaSans-Regular.ttf

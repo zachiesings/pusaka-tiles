@@ -96,3 +96,31 @@ class Palette {
     Color(0xFF45C6D4), // cyan
   ];
 }
+
+/// Single source of truth for typography — Outfit (geometric display) for
+/// numbers/combo/headlines, Plus Jakarta Sans for body. Use `.copyWith(color:)`
+/// at the call site. Replaces the old Cinzel display face.
+class Typo {
+  Typo._();
+  static const String display = 'Outfit';
+  static const String body = 'Jakarta';
+
+  static const TextStyle score =
+      TextStyle(fontFamily: display, fontWeight: FontWeight.w800, fontSize: 52, height: 1.0, letterSpacing: -1.5);
+  static const TextStyle combo =
+      TextStyle(fontFamily: display, fontWeight: FontWeight.w800, fontSize: 22, letterSpacing: 0.5);
+  static const TextStyle judge =
+      TextStyle(fontFamily: display, fontWeight: FontWeight.w800, fontSize: 42, letterSpacing: 1.0, height: 1.0);
+  static const TextStyle fever =
+      TextStyle(fontFamily: display, fontWeight: FontWeight.w800, fontSize: 64, letterSpacing: 2, height: 1.0);
+  static const TextStyle h1 =
+      TextStyle(fontFamily: display, fontWeight: FontWeight.w700, fontSize: 24, letterSpacing: 0.2);
+  static const TextStyle title =
+      TextStyle(fontFamily: body, fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 0.2);
+  static const TextStyle label =
+      TextStyle(fontFamily: body, fontWeight: FontWeight.w600, fontSize: 12);
+  static const TextStyle small =
+      TextStyle(fontFamily: body, fontWeight: FontWeight.w600, fontSize: 10.5, letterSpacing: 0.4);
+  static const TextStyle chip =
+      TextStyle(fontFamily: display, fontWeight: FontWeight.w700, fontSize: 13);
+}
