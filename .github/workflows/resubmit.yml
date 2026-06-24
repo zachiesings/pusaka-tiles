@@ -1,18 +1,19 @@
 name: Force Resubmit
 
-# Cancels the stale (rejected) review submission, then submits the new build for
-# review. Manual trigger only. Reuses the existing App Store Connect API key.
+# Cancels the stale (rejected) review submission, sets the App Review note, then
+# submits the chosen build for review. Manual trigger. Reuses the ASC API key.
 on:
   workflow_dispatch:
     inputs:
       build_number:
         description: "TestFlight build number to submit"
         required: true
-        default: "1782268052"
+        default: "1782280986"
 
 env:
   BUNDLE_ID: id.pusakatiles.pusakatiles
   BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+  REVIEW_NOTE: "The watch-ad button now appears only after a rewarded ad has finished loading; tapping it always presents the ad. If no ad is available the button is hidden and the user continues normally. AdMob configuration verified."
   ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
   ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
   ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
@@ -23,5 +24,5 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Cancel stale submission + submit (fastlane)
+      - name: Cancel stale submission + set review note + submit (fastlane)
         run: fastlane force_submit
