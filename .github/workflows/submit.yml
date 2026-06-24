@@ -1,0 +1,28 @@
+name: Submit for Review
+
+# Attaches a TestFlight build to the App Store version and submits it for review,
+# reusing the same App Store Connect API key as the TestFlight pipeline. Manual
+# trigger only. Pass the build number to submit (defaults to the latest fix).
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "TestFlight build number to submit"
+        required: true
+        default: "1782268052"
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+  ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+jobs:
+  submit:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Submit for review (fastlane)
+        run: fastlane submit
