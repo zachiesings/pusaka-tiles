@@ -158,6 +158,9 @@ class TilesGameScreen extends StatelessWidget {
                             CustomPaint(
                                 painter: TilesBoardPainter(
                                     engine: e, flashLane: gc.flashLane, flashT: gc.flashT)),
+                            // Rich pooled particle bursts / ripples / flash per tap
+                            // (shares the board's coordinate space; taps pass through).
+                            Positioned.fill(child: _GameFxLayer(gc: gc)),
                             Row(
                               children: List.generate(
                                 K.columns,
@@ -632,12 +635,12 @@ class _FeverFxPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
-    for (var i = 0; i < 44; i++) {
+    for (var i = 0; i < 72; i++) {
       final seed = i * 0.6180339887;
       final x = w * ((seed * 7.13) % 1.0);
-      final speed = 50 + (i % 5) * 34.0;
+      final speed = 60 + (i % 6) * 38.0;
       final y = h - (((6 - t) * speed + i * 41.0) % (h + 60));
-      final r = 1.4 + (i % 3) * 1.1;
+      final r = 1.6 + (i % 3) * 1.3;
       final col = (i % 3 == 0)
           ? Palette.pink
           : (i % 3 == 1)
@@ -656,4 +659,260 @@ class _FeverFxPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FeverFxPainter old) => old.t != t;
+}
+
+// ─────────────────────────── per-tap particle FX ───────────────────────────
+
+class _P {
+  double x = 0, y = 0, vx = 0, vy = 0, life = 0, max = 1, size = 2;
+  Color color = Palette.gold;
+  bool alive = false;
+}
+
+class _R {
+  double x = 0, y = 0, t = 0, dur = 0.45, maxR = 60, width = 3;
+  Color color = Palette.gold;
+  bool alive = false;
+}
+
+/// Code-driven FX over the board: pooled particle bursts + ripple shockwaves +
+/// a light flash on each tap (distinct per judgment) and combo-milestone bursts.
+/// Shares the board's coordinate space; own ticker repaints ONLY while active.
+class _GameFxLayer extends StatefulWidget {
+  final TilesGameController gc;
+  const _GameFxLayer({required this.gc});
+  @override
+  State<_GameFxLayer> createState() => _GameFxLayerState();
+}
+
+class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderStateMixin {
+  late final _ticker = createTicker(_tick);
+  Duration _last = Duration.zero;
+  Size _size = Size.zero;
+  int _seenJudge = 0;
+  int _milestone = 0;
+  double _flash = 0;
+  Color _flashColor = Palette.gold;
+  final List<_P> _ps = List.generate(180, (_) => _P());
+  final List<_R> _rs = List.generate(16, (_) => _R());
+  final math.Random _rng = math.Random(11);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.gc.addListener(_onGc);
+    _ticker.start();
+  }
+
+  @override
+  void didUpdateWidget(_GameFxLayer old) {
+    super.didUpdateWidget(old);
+    if (old.gc != widget.gc) {
+      old.gc.removeListener(_onGc);
+      widget.gc.addListener(_onGc);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.gc.removeListener(_onGc);
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _onGc() {
+    final gc = widget.gc;
+    if (gc.judgeEvent != _seenJudge) {
+      _seenJudge = gc.judgeEvent;
+      if (gc.lastJudge > 0 && gc.flashLane >= 0) _hit(gc.flashLane, gc.lastJudge);
+    }
+    final c = gc.combo;
+    if (c < 10) {
+      _milestone = 0;
+    } else if ((c == 10 || c == 25 || c == 50 || c == 100) && c != _milestone) {
+      _milestone = c;
+      _milestoneBurst(gc.feverActive);
+    }
+  }
+
+  _P? _freeP() {
+    for (final p in _ps) {
+      if (!p.alive) return p;
+    }
+    return null;
+  }
+
+  _R? _freeR() {
+    for (final r in _rs) {
+      if (!r.alive) return r;
+    }
+    return null;
+  }
+
+  void _hit(int lane, int judge) {
+    if (_size == Size.zero) return;
+    final laneW = _size.width / K.columns;
+    final x = (lane + 0.5) * laneW;
+    final y = _size.height * 0.80; // the hit line
+    final color = judge == 3 ? Palette.gold : judge == 2 ? Palette.teal : Palette.cyan;
+    final count = judge == 3 ? 16 : judge == 2 ? 10 : 6;
+    final spread = judge == 3 ? 1.4 : judge == 2 ? 1.0 : 0.7;
+    for (var i = 0; i < count; i++) {
+      final p = _freeP();
+      if (p == null) break;
+      final ang = -math.pi / 2 + (_rng.nextDouble() - 0.5) * math.pi * spread;
+      final spd = (70 + _rng.nextDouble() * 190) * (judge == 3 ? 1.3 : 1.0);
+      p
+        ..alive = true
+        ..x = x
+        ..y = y
+        ..vx = math.cos(ang) * spd
+        ..vy = math.sin(ang) * spd
+        ..life = 0.5 + _rng.nextDouble() * 0.4
+        ..max = p.life
+        ..size = laneW * (0.03 + _rng.nextDouble() * 0.05)
+        ..color = color;
+    }
+    final r = _freeR();
+    if (r != null) {
+      r
+        ..alive = true
+        ..x = x
+        ..y = y
+        ..t = 0
+        ..dur = 0.45
+        ..maxR = laneW * (judge == 3 ? 1.7 : 1.1)
+        ..width = judge == 3 ? 4 : 2.5
+        ..color = color;
+    }
+    final f = judge == 3 ? 0.5 : judge == 2 ? 0.28 : 0.14;
+    if (f > _flash) {
+      _flash = f;
+      _flashColor = color;
+    }
+  }
+
+  void _milestoneBurst(bool fever) {
+    if (_size == Size.zero) return;
+    final x = _size.width / 2, y = _size.height * 0.55;
+    final color = fever ? Palette.pink : Palette.gold;
+    for (var i = 0; i < 28; i++) {
+      final p = _freeP();
+      if (p == null) break;
+      final ang = _rng.nextDouble() * math.pi * 2;
+      final spd = 90 + _rng.nextDouble() * 250;
+      p
+        ..alive = true
+        ..x = x
+        ..y = y
+        ..vx = math.cos(ang) * spd
+        ..vy = math.sin(ang) * spd
+        ..life = 0.7 + _rng.nextDouble() * 0.5
+        ..max = p.life
+        ..size = _size.width * 0.012
+        ..color = color;
+    }
+    final r = _freeR();
+    if (r != null) {
+      r
+        ..alive = true
+        ..x = x
+        ..y = y
+        ..t = 0
+        ..dur = 0.6
+        ..maxR = _size.width * 0.7
+        ..width = 4
+        ..color = color;
+    }
+    if (0.45 > _flash) {
+      _flash = 0.45;
+      _flashColor = color;
+    }
+  }
+
+  void _tick(Duration elapsed) {
+    final dt = _last == Duration.zero ? 0.016 : (elapsed - _last).inMicroseconds / 1e6;
+    _last = elapsed;
+    final g = _size.height * 0.9; // gravity pulls sparks down
+    var active = false;
+    for (final p in _ps) {
+      if (!p.alive) continue;
+      active = true;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += g * dt;
+      p.life -= dt;
+      if (p.life <= 0) p.alive = false;
+    }
+    for (final r in _rs) {
+      if (!r.alive) continue;
+      active = true;
+      r.t += dt;
+      if (r.t >= r.dur) r.alive = false;
+    }
+    if (_flash > 0) {
+      _flash = (_flash - dt * 2.5).clamp(0.0, 1.0);
+      active = true;
+    }
+    if (active && mounted) setState(() {}); // repaint only while something animates
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (_, c) {
+          _size = Size(c.maxWidth, c.maxHeight);
+          return RepaintBoundary(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _FxPainter(_ps, _rs, _flash, _flashColor),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _FxPainter extends CustomPainter {
+  final List<_P> ps;
+  final List<_R> rs;
+  final double flash;
+  final Color flashColor;
+  _FxPainter(this.ps, this.rs, this.flash, this.flashColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (flash > 0.001) {
+      canvas.drawRect(Offset.zero & size, Paint()..color = flashColor.withOpacity(flash * 0.5));
+    }
+    for (final r in rs) {
+      if (!r.alive) continue;
+      final f = (r.t / r.dur).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        Offset(r.x, r.y),
+        r.maxR * f,
+        Paint()
+          ..color = r.color.withOpacity((1 - f) * 0.6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r.width * (1 - f) + 0.5
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+      );
+    }
+    for (final p in ps) {
+      if (!p.alive) continue;
+      final a = (p.life / p.max).clamp(0.0, 1.0);
+      canvas.drawCircle(
+        Offset(p.x, p.y),
+        p.size * (0.5 + a * 0.5),
+        Paint()
+          ..color = p.color.withOpacity(a * 0.9)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FxPainter old) => true;
 }

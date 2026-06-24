@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import '../game/engine/tiles_engine.dart';
@@ -35,40 +34,33 @@ class TilesBoardPainter extends CustomPainter {
       canvas.drawLine(Offset(c * laneW, 0), Offset(c * laneW, size.height), divider);
     }
 
-    // Tap flash glow + spark burst at the tapped lane's hit zone
+    // Tap flash glow lighting up the struck lane's hit zone (rich particle
+    // bursts/ripples are drawn by the overlaid _GameFxLayer).
+    final pulse = flashLane >= 0 ? flashT.clamp(0.0, 1.0) : 0.0;
     if (flashLane >= 0 && flashT > 0) {
       final x = flashLane * laneW;
-      final r = Rect.fromLTWH(x, hitY - pxPerBeat * 1.2, laneW, pxPerBeat * 1.6);
+      final r = Rect.fromLTWH(x, hitY - pxPerBeat * 1.4, laneW, pxPerBeat * 1.8);
       canvas.drawRect(
         r,
         Paint()
           ..shader = LinearGradient(
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
-            colors: [Palette.gold.withOpacity(0.5 * flashT), Palette.gold.withOpacity(0)],
+            colors: [Palette.gold.withOpacity(0.55 * flashT), Palette.gold.withOpacity(0)],
           ).createShader(r),
       );
-      // sparks flying up & out (deterministic from flashT — no per-particle state)
-      final cxp = x + laneW / 2;
-      final baseY = hitY;
-      final spark = Paint()..color = Palette.cream.withOpacity(flashT);
-      for (var i = 0; i < 7; i++) {
-        final ang = -math.pi / 2 + (i - 3) * 0.32;
-        final dist = (1 - flashT) * pxPerBeat * 1.8;
-        final px = cxp + math.cos(ang) * dist;
-        final py = baseY + math.sin(ang) * dist;
-        canvas.drawCircle(Offset(px, py), laneW * 0.05 * (0.4 + flashT * 0.6), spark);
-      }
     }
 
-    // Glowing hit line
+    // Glowing hit line — brightens + thickens with the most recent tap (pulse).
     canvas.drawLine(Offset(0, hitY), Offset(size.width, hitY),
         Paint()
-          ..color = Palette.gold.withOpacity(0.6)
-          ..strokeWidth = 2.5
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+          ..color = Palette.gold.withOpacity(0.5 + 0.4 * pulse)
+          ..strokeWidth = 2.5 + 5 * pulse
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 + 7 * pulse));
     canvas.drawLine(Offset(0, hitY), Offset(size.width, hitY),
-        Paint()..color = Palette.goldLt..strokeWidth = 1.4);
+        Paint()
+          ..color = Color.lerp(Palette.goldLt, Colors.white, pulse * 0.7)!
+          ..strokeWidth = 1.4 + pulse * 1.6);
 
     // Visible tiles (rows sorted by startBeat). A tile's bottom edge reaches the
     // hit line exactly when scroll == its startBeat.
