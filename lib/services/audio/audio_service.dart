@@ -24,18 +24,31 @@ class AudioService {
     _backing.setReleaseMode(ReleaseMode.loop);
   }
 
-  /// Start the song's humanized backing bed (loops, sits low so the tapped
-  /// melody stays on top). No-op if music is off or already playing this song.
+  /// In-game accompaniment mode (separate from the home BGM): off | pad | groove.
+  String inGameMode = 'pad';
+
+  /// Start the in-game accompaniment for [songId], honouring [inGameMode]:
+  ///  • off    → silence (the player's taps are the music)
+  ///  • pad    → a shared, harmonically-neutral ambient drone (very quiet)
+  ///  • groove → the song's tempo-matched soft groove (quiet)
+  /// Either way it sits well below the tapped melody. Independent of home BGM.
   Future<void> startBacking(String songId) async {
-    if (!musicEnabled) return;
-    if (_backingPlaying && _backingSong == songId) return;
-    _backingSong = songId;
+    if (inGameMode == 'off') {
+      await stopBacking();
+      return;
+    }
+    final asset = inGameMode == 'pad'
+        ? 'audio/backing_pad.mp3'
+        : 'audio/backing/$songId.mp3';
+    final volume = inGameMode == 'pad' ? 0.16 : 0.30; // always under the melody
+    if (_backingPlaying && _backingSong == asset) return;
+    _backingSong = asset;
     _backingPlaying = true;
     try {
       await _backing.stop();
-      await _backing.play(AssetSource('audio/backing/$songId.mp3'), volume: 0.42);
+      await _backing.play(AssetSource(asset), volume: volume);
     } catch (_) {
-      _backingPlaying = false; // bed missing (render skipped) → melody-only, fine
+      _backingPlaying = false; // asset missing (render skipped) → melody-only, fine
     }
   }
 
@@ -66,11 +79,10 @@ class AudioService {
   }
 
   void setMusicEnabled(bool v) {
+    // Home BGM only — the in-game accompaniment is controlled separately by
+    // [inGameMode] (the "Musik saat bermain" setting).
     musicEnabled = v;
-    if (!v) {
-      stopBgm();
-      stopBacking();
-    }
+    if (!v) stopBgm();
   }
 
   Future<void> _play(String asset, {double volume = 0.9}) async {

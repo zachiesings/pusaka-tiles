@@ -38,6 +38,15 @@ class K {
     MapEntry('suling', 'Suling'),
   ];
   static const String kHaptics   = 'pt_haptics';
+  static const String kInGameMusic = 'pt_ingame_music'; // off | pad | groove
+
+  /// In-game accompaniment options ("Musik saat bermain"), separate from the
+  /// home BGM. Default = pad (subtle ambient drone).
+  static const List<MapEntry<String, String>> inGameMusicOptions = [
+    MapEntry('off', 'Mati'),
+    MapEntry('pad', 'Pad lembut'),
+    MapEntry('groove', 'Groove halus'),
+  ];
   static const String kFirstRun  = 'pt_first_run';
   // ----- Campaign ("Perjalanan Nusantara") -----
   static const String kCampaignUnlocked = 'pt_campaign_unlocked'; // highest stage unlocked (1..20)

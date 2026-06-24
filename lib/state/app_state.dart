@@ -13,6 +13,7 @@ class AppState extends ChangeNotifier {
 
   bool _sound;
   bool _music;
+  String _inGameMusic;
   bool _haptics;
   int _overCount = 0;
   int _coins;
@@ -24,10 +25,12 @@ class AppState extends ChangeNotifier {
   AppState(this._prefs, this.ads, this.audio)
       : _sound = _prefs.sound,
         _music = _prefs.music,
+        _inGameMusic = _prefs.inGameMusic,
         _coins = _prefs.coins,
         _haptics = _prefs.haptics {
     audio.enabled = _sound;
     audio.musicEnabled = _music;
+    audio.inGameMode = _inGameMusic;
     audio.instrument = _prefs.instrument;
     _unlockedThemes = _prefs.unlockedThemes.toSet()..add('klasik');
     _selectedTheme = _prefs.selectedTheme;
@@ -124,6 +127,17 @@ class AppState extends ChangeNotifier {
     audio.setMusicEnabled(v);
     if (v) audio.startBgm();
     _prefs.setMusic(v);
+    notifyListeners();
+  }
+
+  /// In-game accompaniment mode ("Musik saat bermain"): 'off' | 'pad' | 'groove'.
+  /// Separate from [music] (home BGM). Default 'pad'.
+  String get inGameMusic => _inGameMusic;
+  void setInGameMusic(String v) {
+    _inGameMusic = v;
+    audio.inGameMode = v;
+    _prefs.setInGameMusic(v);
+    if (v == 'off') audio.stopBacking(); // stop immediately if playing
     notifyListeners();
   }
 

@@ -35,6 +35,49 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               SoftCard(
+                glow: Palette.indigo,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: const [
+                      Icon(Icons.queue_music_rounded, color: Palette.gold),
+                      SizedBox(width: 10),
+                      Text('Musik saat bermain',
+                          style: TextStyle(
+                              color: Palette.cream, fontSize: 16, fontWeight: FontWeight.w800)),
+                    ]),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 34, bottom: 8),
+                      child: Text('Iringan halus di bawah ketukanmu — ketukanmu tetap paling jelas',
+                          style: TextStyle(color: Palette.cream.withOpacity(0.5), fontSize: 12)),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: K.inGameMusicOptions.map((e) {
+                        final sel = app.inGameMusic == e.key;
+                        return GestureDetector(
+                          onTap: () => app.setInGameMusic(e.key),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: sel ? Palette.indigo : Palette.panelHi.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: sel ? Palette.indigo : Palette.gold.withOpacity(0.2)),
+                            ),
+                            child: Text(e.value,
+                                style: const TextStyle(
+                                    color: Palette.cream, fontWeight: FontWeight.w700)),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              SoftCard(
                 glow: Palette.teal,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -20,6 +20,10 @@ class Prefs {
   bool get music => _p.getBool(K.kMusic) ?? true;
   Future<void> setMusic(bool v) => _p.setBool(K.kMusic, v);
 
+  // In-game accompaniment mode, separate from home BGM: off | pad | groove.
+  String get inGameMusic => _p.getString(K.kInGameMusic) ?? 'pad';
+  Future<void> setInGameMusic(String v) => _p.setString(K.kInGameMusic, v);
+
   String get instrument => _p.getString(K.kInstrument) ?? 'piano';
   Future<void> setInstrument(String v) => _p.setString(K.kInstrument, v);
 

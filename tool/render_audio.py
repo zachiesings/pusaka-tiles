@@ -180,12 +180,43 @@ def write_events(mf, events, ch_progs):
 
 
 # ---------- per-song backing groove bed (C-major, modern, humanized) ----------
+# ---------- in-game accompaniment ----------
+# All Tiles songs are centred on C (do = C / index 3), so a C open-fifth (C+G,
+# NO third → neither major nor minor) never clashes with diatonic OR pentatonic
+# melodies. We DON'T impose a chord progression any more (that was what fought
+# the tunes). Two variants the player can pick from in settings:
+#   • "ambient pad"  → a single shared, tempo-independent warm drone (default)
+#   • "soft groove"  → per-song, tempo-matched, root-fifth bass + light shaker
+# Both render quiet so the tapped melody always dominates.
+
+def render_pad():
+    # Warm pad drone on C+G open fifth (two octaves), no rhythm, tempo-free → one
+    # shared loop that fits every song. GM program 89 = Pad 2 (warm).
+    beat = TPB
+    bars = 8  # ~ long, gentle loop
+    ev = []
+    for bar in range(bars):
+        base = bar * 4 * beat
+        # re-voice softly each bar so the loop breathes a little (still C+G only)
+        for n in (36, 48, 55):  # C2, C3, G3
+            ev += add_note(None, 0, n, base, beat * 4, 46, humanize=False)
+    mf = MidiFile(ticks_per_beat=TPB)
+    tr = MidiTrack(); mf.tracks.append(tr); tempo_track(tr, 60)
+    write_events(mf, ev, {0: 89})  # Pad 2 (warm)
+    mid = os.path.join(AUD, "_pad.mid"); raw = os.path.join(AUD, "_pad.raw.wav")
+    out = os.path.join(AUD, "backing_pad.mp3")
+    mf.save(mid)
+    fsynth(mid, raw, gain=0.7, room=0.8, level=0.6)
+    # very quiet — sits far under the melody
+    sh(["ffmpeg", "-y", "-i", raw, "-af", "loudnorm=I=-26:TP=-3.0", "-ac", "1",
+        "-c:a", "libmp3lame", "-q:a", "6", out])
+    os.remove(mid); os.remove(raw)
+    print("  ambient pad: backing_pad.mp3")
+
+
 def render_backing(songs):
     out_dir = os.path.join(AUD, "backing")
     os.makedirs(out_dir, exist_ok=True)
-    # I–vi–IV–V loop in C major (safe under any C-major diatonic melody)
-    chords = [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]]  # C Am F G
-    bass_root = [36, 33, 29, 31]
     ok = 0
     for sid, bpm in songs:
       try:
@@ -194,42 +225,31 @@ def render_backing(songs):
         bars = 8
         ev = []
         for bar in range(bars):
-            ch = chords[bar % 4]
-            root = bass_root[bar % 4]
             base = bar * 4 * beat
-            # bass: root on 1 & 3, fifth on 4-and
-            ev += add_note(None, 0, root, base + 0 * beat, int(beat * 0.9), 92)
-            ev += add_note(None, 0, root, base + 2 * beat, int(beat * 0.9), 84)
-            ev += add_note(None, 0, root + 7, base + int(3.5 * beat), int(beat * 0.5), 78)
-            # soft chord stabs on the off-beats (electric piano)
-            for off in (1, 3):
-                for n in ch:
-                    ev += add_note(None, 1, n + 12, base + off * beat + beat // 2,
-                                   int(beat * 0.45), 50)
-            # drums: kick 1&3, snare 2&4, closed hat eighths, shaker
+            # neutral root–fifth bass only (C2 on 1, G2 on 3) — no chords imposed
+            ev += add_note(None, 0, 36, base + 0 * beat, int(beat * 0.9), 70)
+            ev += add_note(None, 0, 43, base + 2 * beat, int(beat * 0.9), 64)
+            # gentle timing support: soft kick on 1 & 3 + light shaker on off-beats
             for k in (0, 2):
-                ev += add_note(None, 9, 36, base + k * beat, beat // 2, 100, humanize=True)
-            for s in (1, 3):
-                ev += add_note(None, 9, 38, base + s * beat, beat // 2, 88)
-            for h in range(8):
-                ev += add_note(None, 9, 42, base + h * (beat // 2), beat // 4, 58)
-                ev += add_note(None, 9, 70, base + h * (beat // 2) + beat // 4, beat // 4, 40)
+                ev += add_note(None, 9, 36, base + k * beat, beat // 2, 74)
+            for h in range(4):
+                ev += add_note(None, 9, 70, base + h * beat + beat // 2, beat // 4, 34)
         mf = MidiFile(ticks_per_beat=TPB)
         tr = MidiTrack(); mf.tracks.append(tr); tempo_track(tr, bpm)
-        write_events(mf, ev, {0: 33, 1: 4, 9: 0})  # bass, e.piano, (drum ch9)
+        write_events(mf, ev, {0: 33, 9: 0})  # acoustic bass + drum ch9
         mid = os.path.join(out_dir, f"_{sid}.mid")
         raw = os.path.join(out_dir, f"_{sid}.raw.wav")
         out = os.path.join(out_dir, f"{sid}.mp3")
         mf.save(mid)
-        fsynth(mid, raw, gain=0.8, room=0.45, level=0.35)
-        # mono, sit lower so the tapped melody stays on top, mp3 (iOS-friendly)
-        sh(["ffmpeg", "-y", "-i", raw, "-af", "loudnorm=I=-19:TP=-2.0", "-ac", "1",
+        fsynth(mid, raw, gain=0.7, room=0.4, level=0.3)
+        # quiet, mono, mp3 — well below the tapped melody
+        sh(["ffmpeg", "-y", "-i", raw, "-af", "loudnorm=I=-24:TP=-3.0", "-ac", "1",
             "-c:a", "libmp3lame", "-q:a", "5", out])
         os.remove(mid); os.remove(raw)
         ok += 1
       except Exception as e:  # leave any prior file in place on failure
         print(f"  ! backing {sid} failed: {e}")
-    print(f"  backing beds: {ok}/{len(songs)}")
+    print(f"  soft grooves: {ok}/{len(songs)}")
 
 
 def parse_songs(path):
@@ -249,6 +269,7 @@ def main():
     render_oneshots()
     render_sfx()
     render_home_bgm()
+    render_pad()
     render_backing(songs)
     print("Audio render complete.")
 
