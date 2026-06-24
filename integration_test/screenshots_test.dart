@@ -88,7 +88,10 @@ Future<void> _capture(
   gc.dispose();
   // Dispose audio too: audioplayers registers a FramePositionUpdater frame
   // callback that otherwise survives teardown ("animation still running").
+  // Disposal is async, so pump a frame to let the cancelled callback settle
+  // before the binding's end-of-test invariant check runs.
   app.audio.dispose();
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 void main() {
