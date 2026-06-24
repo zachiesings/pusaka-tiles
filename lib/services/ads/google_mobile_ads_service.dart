@@ -23,6 +23,13 @@ class GoogleMobileAdsService implements AdsService {
   final ValueNotifier<bool> _ready = ValueNotifier<bool>(false);
   final ValueNotifier<String> _status = ValueNotifier<String>('idle');
 
+  // Exponential backoff for failed loads — a fixed hammer makes AdMob throttle a
+  // fresh unit (error code 0 "too many recently failed requests"). 30s → 60s →
+  // 120s → 240s cap; reset to 30s after a successful load.
+  static const int _retryMinSec = 30;
+  static const int _retryMaxSec = 240;
+  int _retrySec = _retryMinSec;
+
   @override
   bool get available => K.adsEnabled;
 
@@ -57,6 +64,9 @@ class GoogleMobileAdsService implements AdsService {
   @override
   void preloadRewarded() {
     if (!available || _rewarded != null || _loading) return;
+    // Respect the backoff window: while a retry timer is pending, let it fire —
+    // don't let screen-entry calls hammer a throttled unit.
+    if (_retry?.isActive ?? false) return;
     _loading = true;
     _setStatus('requested unit=$_rewardedUnit');
     _ensureInit().then((_) {
@@ -67,6 +77,8 @@ class GoogleMobileAdsService implements AdsService {
           onAdLoaded: (ad) {
             _rewarded = ad;
             _loading = false;
+            _retry?.cancel();
+            _retrySec = _retryMinSec; // success → reset backoff
             _ready.value = true; // → button may now appear
             _setStatus('LOADED ✓');
           },
@@ -90,9 +102,12 @@ class GoogleMobileAdsService implements AdsService {
 
   void _scheduleRetry() {
     _retry?.cancel();
-    _retry = Timer(const Duration(seconds: 30), () {
+    final wait = _retrySec;
+    _retry = Timer(Duration(seconds: wait), () {
       if (_rewarded == null) preloadRewarded();
     });
+    // Back off for the next failure (doubles, capped); reset on a successful load.
+    _retrySec = (_retrySec * 2).clamp(_retryMinSec, _retryMaxSec);
   }
 
   @override

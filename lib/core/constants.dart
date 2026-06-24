@@ -14,7 +14,7 @@ class K {
   // ----- Ads -----
   static const bool adsEnabled = true;
   static const bool useTestAds = false; // REAL ads (production)
-  static const bool adDebug = true; // TEMP: show rewarded-ad load status on the game-over screen (diagnostic)
+  static const bool adDebug = false; // diagnostic status text OFF for submission
   static const bool interstitialEnabled = false; // Rewarded-only per design
   static const String rewardedAdUnit     = 'ca-app-pub-1298950542115439/6115007852';
   static const String interstitialAdUnit = ''; // disabled (interstitialEnabled=false)
