@@ -199,4 +199,30 @@ platform :ios do
     end
   end
 
+  desc "Read-only: latest TestFlight builds + beta groups"
+  lane :tf do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER"], key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    UI.success("APP #{app.name} (#{app.id})")
+    begin
+      builds = app.get_builds(includes: "preReleaseVersion", limit: 6)
+      builds.each do |b|
+        ver = (b.pre_release_version && b.pre_release_version.version) rescue "?"
+        UI.important("BUILD #{ver} (#{b.version}) state=#{b.processing_state} expired=#{b.expired} uploaded=#{(b.uploaded_date rescue nil)}")
+      end
+    rescue => e
+      UI.error("builds: #{e.message}")
+    end
+    begin
+      groups = app.get_beta_groups
+      groups.each do |g|
+        UI.success("GROUP '#{g.name}' internal=#{(g.is_internal_group rescue '?')} publicLink=#{(g.public_link rescue nil)}")
+      end
+    rescue => e
+      UI.error("groups: #{e.message}")
+    end
+  end
+
 end
