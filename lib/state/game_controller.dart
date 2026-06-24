@@ -33,6 +33,7 @@ class TilesGameController extends ChangeNotifier {
   int judgeEvent = 0;   // bumped each tap so the UI animates once
   double feverMeter = 0;    // 0..1, fills with good timing
   double feverTimeLeft = 0; // seconds of active Fever (2x)
+  int feverEvent = 0;       // bumped the frame a Fever starts (UI burst hook)
   bool get feverActive => feverTimeLeft > 0;
   int perfectCount = 0;     // Perfect taps (for accuracy grade)
   int totalTaps = 0;
@@ -135,6 +136,7 @@ class TilesGameController extends ChangeNotifier {
       totalTaps++;
       if (lastJudge == 3) perfectCount++;
       points += base * (feverActive ? 2 : 1);
+      var feverJustStarted = false;
       if (lastJudge >= 2) {
         combo++;
         if (combo > bestCombo) bestCombo = combo;
@@ -142,12 +144,22 @@ class TilesGameController extends ChangeNotifier {
         if (feverMeter >= 1 && !feverActive) {
           feverMeter = 0;
           feverTimeLeft = 6;
+          feverJustStarted = true;
+          feverEvent++; // one-shot signal for a UI burst
         }
       } else {
         combo = 0;
       }
       app.playNote(note);
-      if (app.haptics) HapticFeedback.selectionClick();
+      if (app.haptics) {
+        if (feverJustStarted) {
+          HapticFeedback.heavyImpact(); // Fever! — big thump
+        } else if (lastJudge == 3) {
+          HapticFeedback.lightImpact(); // crisp Perfect
+        } else {
+          HapticFeedback.selectionClick();
+        }
+      }
       if (engine.completed) {
         won = true;
         _finish();
