@@ -4,9 +4,11 @@
 // in test_driver/integration_test.dart, which writes the PNGs to disk.
 //
 // The controller starts a Ticker on construction; under the live integration
-// binding that advances in real time, so we set engine.speed = 0 to FREEZE the
-// falling tiles at a clean frame. We use pump(Duration), never pumpAndSettle
-// (the ticker + animations never settle).
+// binding that advances in real time, so we (a) set engine.speed = 0 to FREEZE
+// the falling tiles at a clean frame, and (b) after each capture replace the
+// tree with an empty widget and dispose the controller, which stops the ticker
+// BEFORE teardown (otherwise the running animation fails the test). We use
+// pump(Duration), never pumpAndSettle (the ticker + animations never settle).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -22,6 +24,8 @@ import 'package:pusaka_tiles/services/storage/prefs.dart';
 import 'package:pusaka_tiles/state/app_state.dart';
 import 'package:pusaka_tiles/state/game_controller.dart';
 import 'package:pusaka_tiles/features/game/game_screen.dart';
+
+const _perTest = Timeout(Duration(seconds: 120));
 
 Future<AppState> _makeApp() async {
   SharedPreferences.setMockInitialValues(<String, Object>{
@@ -67,17 +71,21 @@ TilesGameController _seed(
   return gc;
 }
 
-Future<void> _shoot(
+Future<void> _capture(
   WidgetTester tester,
   IntegrationTestWidgetsFlutterBinding binding,
-  Widget app,
+  AppState app,
+  TilesGameController gc,
   String name,
 ) async {
-  await tester.pumpWidget(app);
+  await tester.pumpWidget(_wrap(app, gc));
   await tester.pump(const Duration(milliseconds: 350));
   await binding.convertFlutterSurfaceToImage();
   await tester.pump(const Duration(milliseconds: 16));
   await binding.takeScreenshot(name);
+  // Tear the screen down, then stop the controller's ticker before teardown.
+  await tester.pumpWidget(const SizedBox.shrink());
+  gc.dispose();
 }
 
 void main() {
@@ -86,18 +94,18 @@ void main() {
   testWidgets('tiles_01_play', (tester) async {
     final app = await _makeApp();
     final gc = _seed(app, 0, points: 1850, combo: 12, flashLane: 1);
-    await _shoot(tester, binding, _wrap(app, gc), 'tiles_01_play');
-  });
+    await _capture(tester, binding, app, gc, 'tiles_01_play');
+  }, timeout: _perTest);
 
   testWidgets('tiles_02_fever', (tester) async {
     final app = await _makeApp();
     final gc = _seed(app, 12, points: 4200, combo: 28, fever: 9, flashLane: 2);
-    await _shoot(tester, binding, _wrap(app, gc), 'tiles_02_fever');
-  });
+    await _capture(tester, binding, app, gc, 'tiles_02_fever');
+  }, timeout: _perTest);
 
   testWidgets('tiles_03_play', (tester) async {
     final app = await _makeApp();
     final gc = _seed(app, 6, points: 3100, combo: 18, flashLane: 3);
-    await _shoot(tester, binding, _wrap(app, gc), 'tiles_03_play');
-  });
+    await _capture(tester, binding, app, gc, 'tiles_03_play');
+  }, timeout: _perTest);
 }
