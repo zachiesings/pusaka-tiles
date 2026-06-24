@@ -1,0 +1,27 @@
+name: Force Resubmit
+
+# Cancels the stale (rejected) review submission, then submits the new build for
+# review. Manual trigger only. Reuses the existing App Store Connect API key.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "TestFlight build number to submit"
+        required: true
+        default: "1782268052"
+
+env:
+  BUNDLE_ID: id.pusakatiles.pusakatiles
+  BUILD_NUMBER: ${{ github.event.inputs.build_number }}
+  ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  ASC_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  ASC_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+jobs:
+  resubmit:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cancel stale submission + submit (fastlane)
+        run: fastlane force_submit

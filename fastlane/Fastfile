@@ -93,4 +93,67 @@ platform :ios do
       UI.error("review submission: #{e.message}")
     end
   end
+
+  desc "Cancel the rejected in-progress submission, then submit the new build for review"
+  lane :force_submit do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER"],
+      key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    platform = Spaceship::ConnectAPI::Platform::IOS
+
+    sub = app.get_in_progress_review_submission(platform: platform)
+    if sub
+      UI.important("Cancelling stale submission #{sub.id} (state=#{sub.state})")
+      begin
+        if sub.respond_to?(:cancel_submission)
+          sub.cancel_submission
+        else
+          Spaceship::ConnectAPI.patch_review_submission(review_submission_id: sub.id, attributes: { canceled: true })
+        end
+      rescue => e
+        UI.error("cancel attempt error: #{e.message}")
+      end
+      cleared = false
+      36.times do
+        cur = app.get_in_progress_review_submission(platform: platform)
+        if cur.nil?
+          cleared = true
+          break
+        end
+        UI.message("waiting for cancel to clear… state=#{cur.state}")
+        sleep 5
+      end
+      UI.user_error!("Old submission did not clear in time") unless cleared
+      UI.success("Stale submission cleared")
+    else
+      UI.message("No in-progress submission to cancel")
+    end
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER"],
+      key_content: ENV["ASC_KEY"],
+      is_key_content_base64: false,
+      in_house: false,
+    )
+    deliver(
+      api_key: api_key,
+      app_identifier: ENV["BUNDLE_ID"],
+      build_number: ENV["BUILD_NUMBER"],
+      submit_for_review: true,
+      force: true,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      run_precheck_before_submit: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        content_rights_contains_third_party_content: false,
+        add_id_info_uses_idfa: false,
+      },
+    )
+  end
 end
