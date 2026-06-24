@@ -734,8 +734,11 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
   void initState() {
     super.initState();
     widget.gc.addListener(_onGc);
-    // Ticker runs ON DEMAND only (started by _kick after a spawn, stopped when
-    // idle) — so a frozen/disposed screen leaves no running animation.
+    // Create the ticker now (in a safe context), but DON'T start it. Touching the
+    // late field here forces createTicker() during initState rather than during
+    // dispose(). It runs ON DEMAND only — _kick starts it after a spawn, _tick
+    // stops it when idle — so a frozen/disposed screen leaves no running animation.
+    _ticker.stop();
   }
 
   void _kick() {
