@@ -2,56 +2,56 @@ import 'package:flutter/foundation.dart';
 import '../../core/constants.dart';
 
 /// What a rewarded ad grants. Labels only — the reward is applied by the caller
-/// after [showRewarded] resolves true.
+/// after [showRewarded] resolves true (i.e. the ad was actually shown + earned).
 enum RewardKind { revive, doubleCoins, bonusCoins }
 
-/// Abstraction so gameplay never imports an ad SDK directly. Swap [StubAdsService]
-/// for [GoogleMobileAdsService] with zero changes to callers.
+/// Abstraction so gameplay never imports an ad SDK directly.
 ///
-/// Monetisation is REWARDED-ONLY: there is no interstitial and no banner.
+/// Monetisation is REWARDED-ONLY (no interstitial, no banner). Guideline 2.1(a):
+/// a watch-ad button must only ever lead to a REAL ad. So the UI shows the
+/// button only while [rewardedReady] is true, and [showRewarded] NEVER grants a
+/// reward unless an ad was actually presented and the reward was earned.
 abstract class AdsService {
   bool get available;
 
-  /// True when a rewarded ad is already loaded and can be shown instantly.
-  /// The UI uses this to show a brief "memuat iklan…" state when false.
-  bool get rewardedReady;
+  /// Reactive readiness — true ONLY when a rewarded ad is loaded and can be
+  /// presented right now. The UI gates the watch-ad button on this, so tapping
+  /// always shows an ad (no dead button, no "ad didn't show").
+  ValueListenable<bool> get rewardedReady;
 
-  /// Warm up a rewarded ad ahead of time (e.g. when the game screen opens) so
-  /// the watch-ad button is instant. Safe to call repeatedly; a no-op if one is
-  /// already loaded or loading.
+  /// Warm up a rewarded ad and keep retrying in the background until one loads.
   void preloadRewarded();
 
-  /// Show a rewarded ad. Designed so the caller's button NEVER silently no-ops:
-  ///  • a preloaded ad is shown → resolves true once the reward is earned;
-  ///  • no ad is ready → it waits briefly for a fresh load;
-  ///  • no-fill / timeout / SDK error → it GRANTS ANYWAY (resolves true).
-  /// Resolves false only when the user dismissed a shown ad before earning.
-  /// Must be user-initiated (a button), never auto.
+  /// Present the already-loaded rewarded ad. Resolves true ONLY if the user
+  /// earned the reward (ad shown to completion). Resolves false if there is no
+  /// ad, the show fails, or the user dismissed early — and grants NOTHING in
+  /// those cases.
   Future<bool> showRewarded(RewardKind kind);
 
-  /// Interstitial is intentionally disabled (rewarded-only). Hard no-op; kept so
-  /// existing callers compile. Never shows anything.
+  /// Interstitial intentionally disabled (rewarded-only). Hard no-op.
   Future<void> maybeShowInterstitial();
 
   void dispose() {}
 }
 
-/// Review-safe stub: simulates a short rewarded ad and always grants. No network,
-/// no SDK, no tracking. Used only when [K.adsEnabled] is false.
+/// Review-safe stub: used only when [K.adsEnabled] is false. Pretends an ad is
+/// always ready and "shown". Never used in production.
 class StubAdsService implements AdsService {
+  final ValueNotifier<bool> _ready = ValueNotifier<bool>(true);
+
   @override
   bool get available => K.adsEnabled;
 
   @override
-  bool get rewardedReady => true;
+  ValueListenable<bool> get rewardedReady => _ready;
 
   @override
-  void preloadRewarded() {}
+  void preloadRewarded() => _ready.value = true;
 
   @override
   Future<bool> showRewarded(RewardKind kind) async {
     debugPrint('[ads:stub] rewarded ad for $kind');
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await Future<void>.delayed(const Duration(milliseconds: 400));
     return true;
   }
 
@@ -59,5 +59,5 @@ class StubAdsService implements AdsService {
   Future<void> maybeShowInterstitial() async {}
 
   @override
-  void dispose() {}
+  void dispose() => _ready.dispose();
 }

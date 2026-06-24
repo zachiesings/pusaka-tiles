@@ -14,21 +14,11 @@ class TilesGameScreen extends StatelessWidget {
   const TilesGameScreen({super.key});
 
   Future<void> _revive(BuildContext context, TilesGameController gc, AppState app) async {
-    if (!app.ads.rewardedReady) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Memuat iklan…'), duration: Duration(seconds: 1)),
-      );
-    }
+    // The button is only visible when an ad is loaded, so this presents a REAL
+    // ad and grants the revive ONLY when the reward is earned. No ad → no grant.
     final ok = await app.ads.showRewarded(RewardKind.revive);
     if (!context.mounted) return;
-    if (ok) {
-      gc.reviveAfterAd(); // ad watched OR no-fill fallback — always continues
-    } else {
-      // The user closed the ad before finishing — not a dead button.
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Iklan ditutup lebih awal — coba lagi.')),
-      );
-    }
+    if (ok) gc.reviveAfterAd();
   }
 
   @override
@@ -288,6 +278,7 @@ class TilesGameScreen extends StatelessWidget {
                     gc.restart();
                   },
                   onHome: () => Navigator.of(context).maybePop(),
+                  adReady: app.ads.rewardedReady,
                 ),
             ],
           ),
@@ -367,6 +358,7 @@ class _GameOverOverlay extends StatelessWidget {
   final bool isStage, stageWon;
   final String stageGoal;
   final VoidCallback onRevive, onRestart, onHome;
+  final ValueListenable<bool> adReady; // gates the watch-ad button (2.1a)
   const _GameOverOverlay({
     required this.score,
     required this.best,
@@ -382,6 +374,7 @@ class _GameOverOverlay extends StatelessWidget {
     required this.onRevive,
     required this.onRestart,
     required this.onHome,
+    required this.adReady,
   });
 
   String get _headline {
@@ -475,17 +468,28 @@ class _GameOverOverlay extends StatelessWidget {
                 style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Palette.gold)),
             Text('Terbaik: $best', style: const TextStyle(color: Palette.cream)),
             const SizedBox(height: 22),
-            if (!won) ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onRevive,
-                  icon: const Icon(Icons.play_circle_fill),
-                  label: const Text('Lanjut — Tonton Iklan'),
-                ),
+            // Watch-ad button shows ONLY when a real rewarded ad is loaded (2.1a):
+            // no ad → no button, the player just uses Ulangi / Pilih Lagu below.
+            if (!won)
+              ValueListenableBuilder<bool>(
+                valueListenable: adReady,
+                builder: (context, ready, _) {
+                  if (!ready) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: onRevive,
+                          icon: const Icon(Icons.play_circle_fill),
+                          label: const Text('Lanjut — Tonton Iklan'),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: 10),
-            ],
             Row(children: [
               Expanded(
                 child: OutlinedButton(
