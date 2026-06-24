@@ -56,12 +56,16 @@ jobs:
       - name: Boot an iPhone 6.9" simulator
         id: sim
         run: |
-          DEV=""
-          for d in "iPhone 17 Pro Max" "iPhone 16 Pro Max" "iPhone 15 Pro Max"; do
-            if xcrun simctl list devicetypes | grep -q "$d"; then DEV="$d"; break; fi
-          done
-          echo "Using device type: $DEV"
-          UDID=$(xcrun simctl create "screens69" "$DEV")
+          # Prefer an EXISTING pre-created device — a freshly-created sim does slow,
+          # flaky first-boot "Data Migration" that previously hung the driver handshake.
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone (17|16|15) Pro Max \(" \
+                 | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | head -1)
+          if [ -z "$UDID" ]; then
+            for d in "iPhone 17 Pro Max" "iPhone 16 Pro Max" "iPhone 15 Pro Max"; do
+              if xcrun simctl list devicetypes | grep -q "$d"; then UDID=$(xcrun simctl create "screens69" "$d"); break; fi
+            done
+          fi
+          echo "Using simulator: $UDID"
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b || true
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
@@ -85,25 +89,8 @@ jobs:
           path: screenshots/*.png
           if-no-files-found: warn
 
-      - name: Upload to App Store Connect (fastlane deliver)
+      - name: Upload to App Store Connect (fastlane lane)
         run: |
           mkdir -p fastlane/screenshots/en-US
           cp screenshots/*.png fastlane/screenshots/en-US/ 2>/dev/null || true
-          python3 - <<'PY'
-          import json, os
-          json.dump({
-              "key_id": os.environ["ASC_KEY_ID"],
-              "issuer_id": os.environ["ASC_ISSUER"],
-              "key": os.environ["ASC_KEY"],
-              "in_house": False,
-          }, open("asc_key.json", "w"))
-          PY
-          fastlane deliver \
-            --api_key_path asc_key.json \
-            --app_identifier "$BUNDLE_ID" \
-            --skip_binary_upload true \
-            --skip_metadata true \
-            --screenshots_path fastlane/screenshots \
-            --overwrite_screenshots true \
-            --run_precheck_before_submit false \
-            --force true
+          fastlane screens

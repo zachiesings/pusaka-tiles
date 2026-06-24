@@ -1,0 +1,29 @@
+default_platform(:ios)
+
+# Uploads ONLY the iPhone 6.9" screenshots to App Store Connect using the same
+# App Store Connect API key used for TestFlight. Invoked as `fastlane screens`
+# from CI. Using a lane (not the bare `deliver` CLI) means every parameter is
+# explicit, so deliver never drops into its interactive "setup deliver?" prompt.
+platform :ios do
+  desc "Upload iPhone 6.9\" screenshots to App Store Connect"
+  lane :screens do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER"],
+      key_content: ENV["ASC_KEY"],
+      is_key_content_base64: false,
+      in_house: false,
+    )
+    deliver(
+      api_key: api_key,
+      app_identifier: ENV["BUNDLE_ID"],
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: false,
+      screenshots_path: "fastlane/screenshots",
+      overwrite_screenshots: true,
+      run_precheck_before_submit: false,
+      force: true,
+    )
+  end
+end
