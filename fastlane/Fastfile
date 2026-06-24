@@ -53,4 +53,44 @@ platform :ios do
       },
     )
   end
+
+  desc "Read-only: print the version + review-submission state"
+  lane :state do
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER"],
+      key: ENV["ASC_KEY"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["BUNDLE_ID"])
+    UI.success("APP: #{app.name} (#{app.id}) #{app.bundle_id}")
+    platform = Spaceship::ConnectAPI::Platform::IOS
+    begin
+      edit = app.get_edit_app_store_version(platform: platform)
+      UI.success("EDIT VERSION: #{edit&.version_string} state=#{edit&.app_store_state} build=#{(edit&.build&.version rescue nil)}")
+    rescue => e
+      UI.error("edit version: #{e.message}")
+    end
+    begin
+      live = app.get_live_app_store_version(platform: platform)
+      UI.success("LIVE VERSION: #{live&.version_string} state=#{live&.app_store_state}")
+    rescue => e
+      UI.message("live version: #{e.message}")
+    end
+    begin
+      sub = app.get_in_progress_review_submission(platform: platform)
+      if sub
+        UI.success("IN-PROGRESS REVIEW SUBMISSION: id=#{sub.id} state=#{sub.state} submitted=#{(sub.submitted_date rescue nil)}")
+        begin
+          items = sub.review_submission_items
+          UI.success("  items in submission: #{items&.size}")
+        rescue => e
+          UI.message("  items: #{e.message}")
+        end
+      else
+        UI.success("NO in-progress review submission")
+      end
+    rescue => e
+      UI.error("review submission: #{e.message}")
+    end
+  end
 end
