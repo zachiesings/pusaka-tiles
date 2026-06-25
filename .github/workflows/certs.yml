@@ -1,0 +1,59 @@
+name: List Certificates (read-only)
+
+# READ-ONLY diagnostic: lists the account's signing certificates via the App
+# Store Connect API key already in CI. It only performs GET requests — it does
+# NOT create, revoke, or modify any certificate, profile, secret, or build.
+# Manual trigger, or auto-runs when this file itself changes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/certs.yml'
+
+env:
+  APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  APP_STORE_CONNECT_KEY_IDENTIFIER: ${{ secrets.APP_STORE_CONNECT_KEY_IDENTIFIER }}
+  APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+jobs:
+  certs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install codemagic-cli-tools
+        run: pip3 install --break-system-packages codemagic-cli-tools || pip3 install codemagic-cli-tools
+
+      - name: List certificates (GET only)
+        run: |
+          echo "===== raw list ====="
+          app-store-connect list-certificates 2>&1 | head -120 || true
+          echo "===== json ====="
+          app-store-connect list-certificates --json 2>cert_err.txt > certs.json || { echo "list --json failed:"; cat cert_err.txt; }
+          python3 - <<'PY'
+          import json, datetime, sys
+          try:
+              data = json.load(open('certs.json'))
+          except Exception as e:
+              print("could not parse certs.json:", e); sys.exit(0)
+          if isinstance(data, dict):
+              data = data.get('data', [data])
+          now = datetime.datetime.now(datetime.timezone.utc)
+          print()
+          print(f"{'TYPE':22} {'DISPLAY NAME':30} {'ID':12} {'SERIAL':16} {'EXPIRES':22} STATUS")
+          print("-"*120)
+          for c in data:
+              a = c.get('attributes', c) if isinstance(c, dict) else {}
+              t   = a.get('certificateType', '?')
+              dn  = a.get('displayName') or a.get('name') or '?'
+              cid = c.get('id', '?') if isinstance(c, dict) else '?'
+              ser = a.get('serialNumber', '?')
+              exp = a.get('expirationDate', '?')
+              status = '?'
+              try:
+                  ed = datetime.datetime.fromisoformat(str(exp).replace('Z', '+00:00'))
+                  status = 'EXPIRED' if ed < now else 'VALID'
+              except Exception:
+                  pass
+              print(f"{str(t):22} {str(dn)[:30]:30} {str(cid):12} {str(ser)[:16]:16} {str(exp):22} {status}")
+          PY
