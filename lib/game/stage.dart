@@ -113,7 +113,8 @@ class StageSpec {
         return 0;
       case StageGoal.fullsong:
         if (!completed) return 0;
-        if (grade == 'S') return 3;
+        // S and the new higher tiers (SS/SSS) all earn 3 stars.
+        if (grade == 'S' || grade == 'SS' || grade == 'SSS') return 3;
         if (grade == 'A') return 2;
         return 1;
     }

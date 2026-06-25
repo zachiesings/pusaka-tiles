@@ -15,9 +15,12 @@ class AudioService {
   String? _backingSong;
   String instrument = 'piano'; // selected traditional voice folder
 
-  AudioService({int voices = 5}) : _pool = List.generate(voices, (_) => AudioPlayer()) {
+  AudioService({int voices = 8}) : _pool = List.generate(voices, (_) => AudioPlayer()) {
     for (final p in _pool) {
       p.setReleaseMode(ReleaseMode.stop);
+      // lowLatency = SoundPool (Android) / preloaded buffer path: the lowest-
+      // latency playback audioplayers exposes. Notes must fire the instant a
+      // tile is struck, so every voice uses it.
       p.setPlayerMode(PlayerMode.lowLatency);
     }
     _bgm.setReleaseMode(ReleaseMode.loop);
@@ -85,28 +88,27 @@ class AudioService {
     if (!v) stopBgm();
   }
 
-  Future<void> _play(String asset, {double volume = 0.9}) async {
+  void _play(String asset, {double volume = 0.9}) {
     if (!enabled) return;
     final p = _pool[_next];
     _next = (_next + 1) % _pool.length;
-    try {
-      await p.stop();
-      await p.play(AssetSource(asset), volume: volume);
-    } catch (_) {
-      // non-essential
-    }
+    // No pre-`stop()`: in lowLatency mode calling play() retriggers the voice
+    // directly. The old stop()→play() round-trip added perceptible lag to every
+    // note; the 8-voice round-robin already lets rapid notes overlap. Fire-and-
+    // forget so the tap handler never awaits the audio platform channel.
+    p.play(AssetSource(asset), volume: volume).catchError((_) {});
   }
 
   /// Play melody note by table index using the selected instrument voice.
   /// Volume 0.6 (not 0.9) leaves headroom: the 5-voice pool overlaps rapid taps,
   /// and hot/long notes summing past 0 dBFS was a cause of the harsh mix.
-  Future<void> playNote(int index) {
+  void playNote(int index) {
     final i = index < 0 ? 0 : (index > 12 ? 12 : index);
-    return _play('audio/$instrument/note_${i.toString().padLeft(2, '0')}.wav', volume: 0.6);
+    _play('audio/$instrument/note_${i.toString().padLeft(2, '0')}.wav', volume: 0.6);
   }
 
-  Future<void> playWrong() => _play('audio/wrong.wav', volume: 0.8);
-  Future<void> playTap() => _play('audio/tap.wav', volume: 0.6);
+  void playWrong() => _play('audio/wrong.wav', volume: 0.8);
+  void playTap() => _play('audio/tap.wav', volume: 0.6);
 
   void dispose() {
     for (final p in _pool) {

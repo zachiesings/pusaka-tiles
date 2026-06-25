@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/constants.dart';
 import '../game/songs.dart';
 import '../game/tile_themes.dart';
 import '../services/storage/prefs.dart';
@@ -15,6 +16,9 @@ class AppState extends ChangeNotifier {
   bool _music;
   String _inGameMusic;
   bool _haptics;
+  double _scrollSpeed;
+  double _audioOffsetMs;
+  double _touchOffsetMs;
   int _overCount = 0;
   int _coins;
   late Set<String> _unlockedThemes;
@@ -27,7 +31,10 @@ class AppState extends ChangeNotifier {
         _music = _prefs.music,
         _inGameMusic = _prefs.inGameMusic,
         _coins = _prefs.coins,
-        _haptics = _prefs.haptics {
+        _haptics = _prefs.haptics,
+        _scrollSpeed = _prefs.scrollSpeed,
+        _audioOffsetMs = _prefs.audioOffsetMs,
+        _touchOffsetMs = _prefs.touchOffsetMs {
     audio.enabled = _sound;
     audio.musicEnabled = _music;
     audio.inGameMode = _inGameMusic;
@@ -216,6 +223,34 @@ class AppState extends ChangeNotifier {
     _prefs.setHaptics(v);
     notifyListeners();
   }
+
+  // ----- Feel: scroll speed + calibration offsets -----
+  double get scrollSpeed => _scrollSpeed;
+  void setScrollSpeed(double v) {
+    _scrollSpeed = v.clamp(K.scrollSpeedMin, K.scrollSpeedMax);
+    _prefs.setScrollSpeed(_scrollSpeed);
+    notifyListeners();
+  }
+
+  double get audioOffsetMs => _audioOffsetMs;
+  void setAudioOffsetMs(double v) {
+    _audioOffsetMs = v.clamp(K.offsetMinMs, K.offsetMaxMs);
+    _prefs.setAudioOffsetMs(_audioOffsetMs);
+    notifyListeners();
+  }
+
+  double get touchOffsetMs => _touchOffsetMs;
+  void setTouchOffsetMs(double v) {
+    _touchOffsetMs = v.clamp(K.offsetMinMs, K.offsetMaxMs);
+    _prefs.setTouchOffsetMs(_touchOffsetMs);
+    notifyListeners();
+  }
+
+  /// Total timing correction applied to gameplay judging. The tile is a visual
+  /// cue and the tapped note is an audio cue, so a player's systematic lateness
+  /// comes from BOTH paths — the calibration screen isolates each, gameplay
+  /// applies the sum. Positive = the player taps late; shift judging to match.
+  double get judgeOffsetMs => _audioOffsetMs + _touchOffsetMs;
 
   void markOnboarded() => _prefs.setFirstRunDone();
 }

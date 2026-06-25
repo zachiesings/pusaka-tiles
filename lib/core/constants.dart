@@ -11,6 +11,27 @@ class K {
   static const double maxSpeed = 7.5;
   static const double visibleRows = 4.5; // rows shown on screen
 
+  // ----- Note scroll-speed preference (multiplies the mode's tempo) -----
+  // A higher value = tiles fall faster / song plays quicker. Persisted, applied
+  // to every run. Default 1.0 (= the original tuned feel). Range clamped 0.7–1.5.
+  static const double scrollSpeedMin = 0.7;
+  static const double scrollSpeedMax = 1.5;
+  static const double scrollSpeedDefault = 1.0;
+  static const List<MapEntry<double, String>> scrollSpeedPresets = [
+    MapEntry(0.8, 'Santai'),
+    MapEntry(1.0, 'Normal'),
+    MapEntry(1.2, 'Cepat'),
+    MapEntry(1.4, 'Kilat'),
+  ];
+
+  // ----- Calibration offsets (milliseconds, per device) -----
+  // touchOffset compensates display+input lag (when you SEE the tile hit the
+  // line vs when the tap registers); audioOffset compensates audio output lag
+  // (when you HEAR the note). Both are added into the timing judged each tap, so
+  // a correctly-calibrated device scores a dead-centre tap as Perfect. Clamped.
+  static const double offsetMinMs = -200;
+  static const double offsetMaxMs = 200;
+
   // ----- Ads -----
   static const bool adsEnabled = true;
   static const bool useTestAds = false; // REAL ads (production)
@@ -39,6 +60,9 @@ class K {
   ];
   static const String kHaptics   = 'pt_haptics';
   static const String kInGameMusic = 'pt_ingame_music'; // off | pad | groove
+  static const String kScrollSpeed   = 'pt_scroll_speed';    // double, tempo multiplier
+  static const String kAudioOffsetMs = 'pt_audio_offset_ms'; // double, ms
+  static const String kTouchOffsetMs = 'pt_touch_offset_ms'; // double, ms
 
   /// In-game accompaniment options ("Musik saat bermain"), separate from the
   /// home BGM. Default = pad (subtle ambient drone).
@@ -54,6 +78,51 @@ class K {
   static const String kGames     = 'pt_games_played';
   static String songBestKey(String songId) => 'pt_best_$songId';
   static String songStarsKey(String songId) => 'pt_stars_$songId';
+}
+
+/// Timing-judgment windows, in BEATS (they scale naturally with tempo: the same
+/// window is a tighter time-slice at higher speed). Single source of truth for
+/// how the game "feels" — tune here. `err` is |scroll − tile.startBeat| AFTER the
+/// device offset is applied, i.e. how far the tap landed from the tile reaching
+/// the hit line. Ordered tiers; a tap earlier than `bad` simply whiffs (the tile
+/// is not consumed) instead of registering, so you can't pre-tap a whole song.
+class Judge {
+  Judge._();
+  static const double perfect = 0.16; // dead-centre
+  static const double great   = 0.30;
+  static const double good    = 0.50;
+  static const double bad     = 0.80; // outer hittable bound (both sides)
+
+  // Tier ids (also the engine's success "judge" code).
+  static const int kMiss    = 0; // tile passed untapped (run ends)
+  static const int kBad     = 1;
+  static const int kGood    = 2;
+  static const int kGreat   = 3;
+  static const int kPerfect = 4;
+
+  /// Map an absolute timing error (beats) to a hit tier (Bad..Perfect).
+  static int tier(double absErr) {
+    if (absErr <= perfect) return kPerfect;
+    if (absErr <= great) return kGreat;
+    if (absErr <= good) return kGood;
+    return kBad;
+  }
+
+  static const Map<int, String> label = {
+    kMiss: 'MISS',
+    kBad: 'BAD',
+    kGood: 'GOOD',
+    kGreat: 'GREAT',
+    kPerfect: 'PERFECT',
+  };
+
+  /// Base points per tier (before Fever multiplier).
+  static const Map<int, int> points = {
+    kBad: 10,
+    kGood: 30,
+    kGreat: 60,
+    kPerfect: 100,
+  };
 }
 
 /// === "PANGGUNG MALAM" — cool indigo-night stage identity (distinct from Blast) ===

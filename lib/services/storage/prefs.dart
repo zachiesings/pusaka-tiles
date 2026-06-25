@@ -27,6 +27,23 @@ class Prefs {
   String get instrument => _p.getString(K.kInstrument) ?? 'piano';
   Future<void> setInstrument(String v) => _p.setString(K.kInstrument, v);
 
+  // ----- Feel: scroll speed + calibration offsets (all per device) -----
+  double get scrollSpeed =>
+      (_p.getDouble(K.kScrollSpeed) ?? K.scrollSpeedDefault)
+          .clamp(K.scrollSpeedMin, K.scrollSpeedMax);
+  Future<void> setScrollSpeed(double v) =>
+      _p.setDouble(K.kScrollSpeed, v.clamp(K.scrollSpeedMin, K.scrollSpeedMax));
+
+  double get audioOffsetMs =>
+      (_p.getDouble(K.kAudioOffsetMs) ?? 0).clamp(K.offsetMinMs, K.offsetMaxMs);
+  Future<void> setAudioOffsetMs(double v) =>
+      _p.setDouble(K.kAudioOffsetMs, v.clamp(K.offsetMinMs, K.offsetMaxMs));
+
+  double get touchOffsetMs =>
+      (_p.getDouble(K.kTouchOffsetMs) ?? 0).clamp(K.offsetMinMs, K.offsetMaxMs);
+  Future<void> setTouchOffsetMs(double v) =>
+      _p.setDouble(K.kTouchOffsetMs, v.clamp(K.offsetMinMs, K.offsetMaxMs));
+
   int get bestCombo => _p.getInt(K.kBestCombo) ?? 0;
   Future<void> setBestCombo(int v) => _p.setInt(K.kBestCombo, v);
 

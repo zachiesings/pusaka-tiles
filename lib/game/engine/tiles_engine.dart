@@ -2,6 +2,11 @@ import 'dart:math';
 import '../../core/constants.dart';
 import '../models/song.dart';
 
+/// tapColumn() return sentinels (note indices are always 0..12, so negatives are
+/// safe out-of-band signals). >= 0 == the note to play on a successful hit.
+const int kTapWrong = -1; // wrong lane → run ends
+const int kTapEarly = -2; // too far ahead of the line → ignored (tile not used)
+
 /// One scrolling tile. Occupies the beat-span [startBeat, startBeat+beats] in a
 /// single lane; taller tiles = longer notes → the melody plays in real rhythm.
 class TileRow {
@@ -21,6 +26,10 @@ class TilesEngine {
   final Song song;
   final bool finite;      // "Lagu Penuh": stop after one full pass, then complete
   final Random _rng;
+
+  /// Device timing correction (ms). Converted to beats at the live speed each tap
+  /// — a positive value shifts judging later, compensating a player who taps late.
+  double offsetMs;
 
   final List<TileRow> rows = <TileRow>[];
   double scroll = 0;      // beats scrolled past the hit line
@@ -44,12 +53,17 @@ class TilesEngine {
     double? startSpeed,
     double? speedStep,
     double? maxSpeed,
+    this.offsetMs = 0,
+    double speedScale = 1.0, // user scroll-speed preference × per-song scale
   })  : _rng = Random(seed),
-        _step = speedStep ?? K.speedStep,
-        _maxSpeed = maxSpeed ?? K.maxSpeed {
-    speed = (startSpeed ?? K.startSpeed) * song.speedScale;
+        _step = (speedStep ?? K.speedStep) * speedScale,
+        _maxSpeed = (maxSpeed ?? K.maxSpeed) * speedScale {
+    speed = (startSpeed ?? K.startSpeed) * song.speedScale * speedScale;
     _ensureAhead(16);
   }
+
+  /// Live offset expressed in beats (depends on the current speed).
+  double get _offsetBeats => offsetMs / 1000.0 * speed;
 
   void _genRow() {
     if (finite && _songPos >= song.notes.length) return; // finite: no more tiles
@@ -79,8 +93,9 @@ class TilesEngine {
       return;
     }
     final t = rows[nextTap];
-    // Miss: the next tile's far (top) edge scrolled fully past the hit line.
-    if (scroll > t.startBeat + t.beats) {
+    // Miss: the next tile's far (top) edge scrolled fully past the hit line
+    // (offset-compensated, so a late-tapping device isn't failed early).
+    if (scroll - _offsetBeats > t.startBeat + t.beats) {
       gameOver = true;
     }
   }
@@ -93,26 +108,34 @@ class TilesEngine {
     _ensureAhead(16);
   }
 
-  /// Tap [col]. Returns the note index to play on success, or -1 on a wrong tap.
+  /// Tap [col]. Returns the note index (>=0) to play on a successful hit, or
+  /// [kTapWrong] (wrong lane — run ends) / [kTapEarly] (too far ahead — ignored).
   int tapColumn(int col) {
-    if (gameOver || completed) return -1;
+    if (gameOver || completed) return kTapWrong;
     _ensureAhead(6);
     if (nextTap >= rows.length) {
       completed = true;
-      return -1;
+      return kTapWrong;
     }
     final t = rows[nextTap];
-    if (col == t.activeColumn) {
-      started = true;
-      t.tapped = true;
-      lastTiming = scroll - t.startBeat; // 0 = bang on the hit line
-      score++;
-      nextTap++;
-      speed = min(_maxSpeed, speed + _step);
-      if (finite && nextTap >= song.notes.length) completed = true;
-      return t.noteIndex;
+    if (col != t.activeColumn) {
+      gameOver = true;
+      return kTapWrong; // wrong lane is always a mistake
     }
-    gameOver = true;
-    return -1;
+    // Offset-compensated timing: 0 = the tile's bottom edge is on the hit line,
+    // negative = it hasn't arrived yet, positive = it's begun to pass.
+    final timing = (scroll - t.startBeat) - _offsetBeats;
+    // Too early: the tile is still well above the hittable window. Don't consume
+    // it — the player simply whiffs and can tap again as it arrives. This is what
+    // stops a player from pre-tapping a whole song to "win" without timing.
+    if (timing < -Judge.bad) return kTapEarly;
+    started = true;
+    t.tapped = true;
+    lastTiming = timing;
+    score++;
+    nextTap++;
+    speed = min(_maxSpeed, speed + _step);
+    if (finite && nextTap >= song.notes.length) completed = true;
+    return t.noteIndex;
   }
 }

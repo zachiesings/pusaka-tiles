@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import '../core/constants.dart';
 import '../game/engine/tiles_engine.dart';
 import '../game/game_mode.dart';
 import '../game/models/song.dart';
@@ -29,15 +30,22 @@ class TilesGameController extends ChangeNotifier {
   int points = 0;       // the shown score (timing + fever bonuses)
   int combo = 0;        // consecutive Perfect/Good taps
   int bestCombo = 0;
-  int lastJudge = 0;    // 1=Early 2=Good 3=Perfect — for the floating popup
+  int lastJudge = 0;    // Judge tier id (kBad..kPerfect) — for the floating popup
   int judgeEvent = 0;   // bumped each tap so the UI animates once
   double feverMeter = 0;    // 0..1, fills with good timing
   double feverTimeLeft = 0; // seconds of active Fever (2x)
   int feverEvent = 0;       // bumped the frame a Fever starts (UI burst hook)
   bool get feverActive => feverTimeLeft > 0;
-  int perfectCount = 0;     // Perfect taps (for accuracy grade)
+  // Per-tier tallies (for accuracy + grade + all-perfect detection).
+  int perfectCount = 0;
+  int greatCount = 0;
+  int goodCount = 0;
+  int badCount = 0;
   int totalTaps = 0;
-  String grade = '';        // S/A/B/C performance grade on game over
+  double accuracy = 0;      // 0..1 weighted accuracy over all taps
+  bool fullCombo = false;   // cleared with no combo break (no Bad / no Miss)
+  bool allPerfect = false;  // cleared with every tap Perfect
+  String grade = '';        // F/D/C/B/A/S/SS/SSS performance grade on game over
 
   // ----- Campaign result (valid after _finish when [stage] != null) -----
   int stageStars = 0;       // 0 = goal not met (stage failed)
@@ -56,6 +64,8 @@ class TilesGameController extends ChangeNotifier {
       startSpeed: p.startSpeed,
       speedStep: p.speedStep,
       maxSpeed: p.maxSpeed,
+      offsetMs: app.judgeOffsetMs,   // device calibration
+      speedScale: app.scrollSpeed,   // user note-speed preference
     );
     won = false;
     _last = Duration.zero;
@@ -68,7 +78,13 @@ class TilesGameController extends ChangeNotifier {
     feverMeter = 0;
     feverTimeLeft = 0;
     perfectCount = 0;
+    greatCount = 0;
+    goodCount = 0;
+    badCount = 0;
     totalTaps = 0;
+    accuracy = 0;
+    fullCombo = false;
+    allPerfect = false;
     grade = '';
     stageStars = 0;
     stageWon = false;
@@ -122,28 +138,33 @@ class TilesGameController extends ChangeNotifier {
   void tap(int col) {
     if (engine.gameOver) return;
     final note = engine.tapColumn(col);
+    // Too early: the tile hasn't entered the hittable window. Whiff — no score,
+    // no penalty, the tile stays. (Keeps timing meaningful; no pre-tapping.)
+    if (note == kTapEarly) return;
     if (note >= 0) {
       flashLane = col;
       flashT = 1.0;
-      // judge timing
-      final err = engine.lastTiming.abs();
-      int base;
-      if (err <= 0.30) {
-        lastJudge = 3; base = 100;
-      } else if (err <= 0.85) {
-        lastJudge = 2; base = 50;
-      } else {
-        lastJudge = 1; base = 10;
-      }
+      // Judge timing into a 5-tier scale (offset already applied in the engine).
+      final tier = Judge.tier(engine.lastTiming.abs()); // kBad..kPerfect
+      lastJudge = tier;
       judgeEvent++;
       totalTaps++;
-      if (lastJudge == 3) perfectCount++;
-      points += base * (feverActive ? 2 : 1);
+      switch (tier) {
+        case Judge.kPerfect: perfectCount++; break;
+        case Judge.kGreat: greatCount++; break;
+        case Judge.kGood: goodCount++; break;
+        default: badCount++; break;
+      }
+      points += Judge.points[tier]! * (feverActive ? 2 : 1);
       var feverJustStarted = false;
-      if (lastJudge >= 2) {
+      if (tier >= Judge.kGood) {
         combo++;
         if (combo > bestCombo) bestCombo = combo;
-        feverMeter += lastJudge == 3 ? 0.14 : 0.05;
+        feverMeter += tier == Judge.kPerfect
+            ? 0.14
+            : tier == Judge.kGreat
+                ? 0.09
+                : 0.05;
         if (feverMeter >= 1 && !feverActive) {
           feverMeter = 0;
           feverTimeLeft = 6;
@@ -151,13 +172,13 @@ class TilesGameController extends ChangeNotifier {
           feverEvent++; // one-shot signal for a UI burst
         }
       } else {
-        combo = 0;
+        combo = 0; // a Bad-timed hit breaks the combo
       }
       app.playNote(note);
       if (app.haptics) {
         if (feverJustStarted) {
           HapticFeedback.heavyImpact(); // Fever! — big thump
-        } else if (lastJudge == 3) {
+        } else if (tier == Judge.kPerfect) {
           HapticFeedback.lightImpact(); // crisp Perfect
         } else {
           HapticFeedback.selectionClick();
@@ -192,14 +213,34 @@ class TilesGameController extends ChangeNotifier {
     app.submitBestCombo(bestCombo);
     app.addCoins(points ~/ 50); // earn coins to spend on tile themes
     app.incGamesPlayed();
-    final acc = totalTaps == 0 ? 0.0 : perfectCount / totalTaps;
-    grade = acc >= 0.92
-        ? 'S'
-        : acc >= 0.78
-            ? 'A'
-            : acc >= 0.55
-                ? 'B'
-                : 'C';
+    // Weighted accuracy over every tap (Perfect 1·Great .7·Good .4·Bad .1).
+    accuracy = totalTaps == 0
+        ? 0.0
+        : (perfectCount * 1.0 +
+                greatCount * 0.7 +
+                goodCount * 0.4 +
+                badCount * 0.1) /
+            totalTaps;
+    // A clean clear = reached the end of the song with no Miss (a Miss ends the
+    // run, so completion already implies none). FC = no combo break (no Bad).
+    final cleared = engine.completed;
+    fullCombo = cleared && badCount == 0;
+    allPerfect = cleared && totalTaps > 0 && perfectCount == totalTaps;
+    grade = allPerfect
+        ? 'SSS'
+        : accuracy >= 0.97
+            ? 'SS'
+            : accuracy >= 0.93
+                ? 'S'
+                : accuracy >= 0.85
+                    ? 'A'
+                    : accuracy >= 0.72
+                        ? 'B'
+                        : accuracy >= 0.55
+                            ? 'C'
+                            : accuracy >= 0.40
+                                ? 'D'
+                                : 'F';
 
     // Campaign evaluation: did this run satisfy the stage's objective?
     final s = stage;

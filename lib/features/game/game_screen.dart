@@ -205,13 +205,16 @@ class TilesGameScreen extends StatelessWidget {
                       child: Transform.scale(
                         scale: 0.85 + gc.flashT * 0.35,
                         child: Builder(builder: (_) {
-                          final c = gc.lastJudge == 3
+                          final tier = gc.lastJudge;
+                          final c = tier == Judge.kPerfect
                               ? Palette.gold
-                              : gc.lastJudge == 2
+                              : tier == Judge.kGreat
                                   ? Palette.teal
-                                  : Palette.cyan;
+                                  : tier == Judge.kGood
+                                      ? Palette.cyan
+                                      : Palette.pink; // Bad
                           return Text(
-                            gc.lastJudge == 3 ? 'PERFECT' : gc.lastJudge == 2 ? 'GREAT' : 'GOOD',
+                            Judge.label[tier] ?? '',
                             style: Typo.judge.copyWith(
                               color: c,
                               shadows: [Shadow(color: c.withOpacity(0.55), blurRadius: 18)],
@@ -232,6 +235,9 @@ class TilesGameScreen extends StatelessWidget {
                   grade: gc.grade,
                   perfects: gc.perfectCount,
                   total: gc.totalTaps,
+                  accuracy: gc.accuracy,
+                  fullCombo: gc.fullCombo,
+                  allPerfect: gc.allPerfect,
                   isNewBest: gc.isNewBest,
                   won: gc.won,
                   isStage: gc.stage != null,
@@ -321,6 +327,8 @@ class _ObjectiveBar extends StatelessWidget {
 class _GameOverOverlay extends StatelessWidget {
   final int score, best, stars, perfects, total;
   final String grade;
+  final double accuracy; // 0..1 weighted
+  final bool fullCombo, allPerfect;
   final bool isNewBest;
   final bool won;
   final bool isStage, stageWon;
@@ -335,6 +343,9 @@ class _GameOverOverlay extends StatelessWidget {
     required this.grade,
     required this.perfects,
     required this.total,
+    required this.accuracy,
+    required this.fullCombo,
+    required this.allPerfect,
     required this.isNewBest,
     required this.won,
     this.isStage = false,
@@ -354,13 +365,15 @@ class _GameOverOverlay extends StatelessWidget {
     return 'Yah, Meleset!';
   }
 
-  Color get _gradeColor => grade == 'S'
+  Color get _gradeColor => (grade == 'SSS' || grade == 'SS' || grade == 'S')
       ? Palette.gold
       : grade == 'A'
           ? Palette.teal
           : grade == 'B'
               ? Palette.cyan
-              : Palette.pink;
+              : (grade == 'C' || grade == 'D')
+                  ? Palette.violet
+                  : Palette.pink; // F
 
   @override
   Widget build(BuildContext context) {
@@ -442,18 +455,42 @@ class _GameOverOverlay extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(grade,
                     style: TextStyle(
-                        fontSize: 52, fontWeight: FontWeight.w900, color: _gradeColor, height: 1)),
+                        fontSize: grade.length >= 3 ? 34 : (grade.length == 2 ? 44 : 52),
+                        fontWeight: FontWeight.w900,
+                        color: _gradeColor,
+                        height: 1)),
               ),
-            if (total > 0)
+            if (total > 0) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('$perfects/$total PERFECT',
+                child: Text(
+                    'Akurasi ${(accuracy * 100).round()}%  ·  $perfects/$total PERFECT',
                     style: TextStyle(
                         color: Palette.cream.withOpacity(0.6),
                         fontSize: 12,
-                        letterSpacing: 1,
+                        letterSpacing: 0.5,
                         fontWeight: FontWeight.w700)),
               ),
+              if (allPerfect || fullCombo)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (allPerfect ? Palette.gold : Palette.teal).withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: (allPerfect ? Palette.gold : Palette.teal).withOpacity(0.7)),
+                    ),
+                    child: Text(allPerfect ? '★ ALL PERFECT ★' : 'FULL COMBO',
+                        style: TextStyle(
+                            color: allPerfect ? Palette.goldLt : Palette.teal,
+                            fontSize: 12,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w900)),
+                  ),
+                ),
+            ],
             const SizedBox(height: 10),
             TweenAnimationBuilder<double>(
               tween: Tween<double>(begin: 0, end: score.toDouble()),
@@ -798,14 +835,24 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
     final laneW = _size.width / K.columns;
     final x = (lane + 0.5) * laneW;
     final y = _size.height * 0.80; // the hit line
-    final color = judge == 3 ? Palette.gold : judge == 2 ? Palette.teal : Palette.cyan;
-    final count = judge == 3 ? 16 : judge == 2 ? 10 : 6;
-    final spread = judge == 3 ? 1.4 : judge == 2 ? 1.0 : 0.7;
+    // Map the 4 hit tiers (kBad..kPerfect) to the existing burst sizes.
+    final isPerfect = judge == Judge.kPerfect;
+    final isGreat = judge == Judge.kGreat;
+    final isGood = judge == Judge.kGood;
+    final color = isPerfect
+        ? Palette.gold
+        : isGreat
+            ? Palette.teal
+            : isGood
+                ? Palette.cyan
+                : Palette.pink; // Bad
+    final count = isPerfect ? 16 : isGreat ? 10 : isGood ? 6 : 4;
+    final spread = isPerfect ? 1.4 : isGreat ? 1.0 : 0.7;
     for (var i = 0; i < count; i++) {
       final p = _freeP();
       if (p == null) break;
       final ang = -math.pi / 2 + (_rng.nextDouble() - 0.5) * math.pi * spread;
-      final spd = (70 + _rng.nextDouble() * 190) * (judge == 3 ? 1.3 : 1.0);
+      final spd = (70 + _rng.nextDouble() * 190) * (isPerfect ? 1.3 : 1.0);
       p
         ..alive = true
         ..x = x
@@ -825,11 +872,11 @@ class _GameFxLayerState extends State<_GameFxLayer> with SingleTickerProviderSta
         ..y = y
         ..t = 0
         ..dur = 0.45
-        ..maxR = laneW * (judge == 3 ? 1.7 : 1.1)
-        ..width = judge == 3 ? 4 : 2.5
+        ..maxR = laneW * (isPerfect ? 1.7 : 1.1)
+        ..width = isPerfect ? 4 : 2.5
         ..color = color;
     }
-    final f = judge == 3 ? 0.5 : judge == 2 ? 0.28 : 0.14;
+    final f = isPerfect ? 0.5 : isGreat ? 0.28 : 0.14;
     if (f > _flash) {
       _flash = f;
       _flashColor = color;
