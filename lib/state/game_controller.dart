@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import '../core/constants.dart';
+import '../game/chart.dart';
 import '../game/engine/tiles_engine.dart';
 import '../game/game_mode.dart';
 import '../game/models/song.dart';
@@ -14,9 +15,15 @@ class TilesGameController extends ChangeNotifier {
   final AppState app;
   final Song song;
   final GameMode mode;
-  final StageSpec? stage; // non-null when playing a campaign stage
+  final Difficulty difficulty; // note vocabulary + tempo tier
+  final PlayMode play;         // practice / endless / challenge / daily
+  final StageSpec? stage;      // non-null when playing a campaign stage
+  final int? dailySeed;        // fixes the chart for Daily mode
 
   late TilesEngine engine;
+  late Chart chart;
+  PlayMode _effPlay = PlayMode.endless; // resolved play mode (campaign-derived)
+  RunReward reward = const RunReward(); // progression rewards (valid after _finish)
   Ticker? _ticker;
   Duration _last = Duration.zero;
   bool isNewBest = false;
@@ -52,20 +59,52 @@ class TilesGameController extends ChangeNotifier {
   bool stageWon = false;
   bool stageFirstClear = false;
 
-  TilesGameController(this.app, this.song, {this.mode = GameMode.klasik, this.stage}) {
+  TilesGameController(
+    this.app,
+    this.song, {
+    this.mode = GameMode.klasik,
+    this.difficulty = Difficulty.normal,
+    this.play = PlayMode.endless,
+    this.stage,
+    this.dailySeed,
+  }) {
     _begin();
   }
 
   void _begin() {
-    final p = kModeParams[mode]!;
+    // Campaign keeps its shipped feel: taps-only chart (legacy) at the stage's
+    // own GameMode speed; "Lagu Penuh" stages are a finite challenge, the rest
+    // are endless survival. New flows use the chosen difficulty + play mode.
+    final legacy = stage != null;
+    final effPlay = legacy
+        ? (mode == GameMode.penuh ? PlayMode.challenge : PlayMode.endless)
+        : play;
+    _effPlay = effPlay;
+    final pm = kPlayModes[effPlay]!;
+    final diffSpec = kDifficulty[difficulty]!;
+    final modeP = kModeParams[mode]!;
+    final spd = app.scrollSpeed;
+    final diffMul = legacy ? 1.0 : diffSpec.speedMul;
+    final base = modeP.startSpeed * song.speedScale * spd * diffMul * pm.speedMul;
+    final mx = modeP.maxSpeed * song.speedScale * spd * diffMul;
+    final step = (pm.ramp ? modeP.speedStep : 0.0) * spd * diffMul;
+    chart = ChartGenerator.generate(
+      song,
+      difficulty,
+      seed: dailySeed ?? 0,
+      columns: K.columns,
+      legacy: legacy,
+    );
     engine = TilesEngine(
-      song: song,
-      finite: p.finite,
-      startSpeed: p.startSpeed,
-      speedStep: p.speedStep,
-      maxSpeed: p.maxSpeed,
-      offsetMs: app.judgeOffsetMs,   // device calibration
-      speedScale: app.scrollSpeed,   // user note-speed preference
+      chart: chart,
+      columns: K.columns,
+      finite: pm.finite,
+      loop: pm.loop,
+      noFail: pm.noFail,
+      offsetMs: app.judgeOffsetMs, // device calibration
+      startSpeed: base,
+      speedStep: step,
+      maxSpeed: mx,
     );
     won = false;
     _last = Duration.zero;
@@ -89,6 +128,7 @@ class TilesGameController extends ChangeNotifier {
     stageStars = 0;
     stageWon = false;
     stageFirstClear = false;
+    reward = const RunReward();
     _scored = false;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
@@ -155,7 +195,17 @@ class TilesGameController extends ChangeNotifier {
         case Judge.kGood: goodCount++; break;
         default: badCount++; break;
       }
-      points += Judge.points[tier]! * (feverActive ? 2 : 1);
+      // The just-cleared tile (nextTap was advanced) — richer note kinds score
+      // more: holds + chords reward the extra skill/feel.
+      final clearedKind = engine.rows[engine.nextTap - 1].kind;
+      final kindMul = clearedKind == NoteKind.hold
+          ? 1.5
+          : clearedKind == NoteKind.chord
+              ? 1.4
+              : (clearedKind == NoteKind.flick || clearedKind == NoteKind.slide)
+                  ? 1.2
+                  : 1.0;
+      points += (Judge.points[tier]! * kindMul).round() * (feverActive ? 2 : 1);
       var feverJustStarted = false;
       if (tier >= Judge.kGood) {
         combo++;
@@ -241,6 +291,21 @@ class TilesGameController extends ChangeNotifier {
                             : accuracy >= 0.40
                                 ? 'D'
                                 : 'F';
+
+    // Progression: XP, song mastery, daily missions, Daily streak.
+    reward = app.recordRun(
+      songId: song.id,
+      difficulty: difficulty,
+      play: _effPlay,
+      points: points,
+      accuracy: accuracy,
+      grade: grade,
+      bestCombo: bestCombo,
+      perfects: perfectCount,
+      fullCombo: fullCombo,
+      allPerfect: allPerfect,
+      cleared: engine.completed,
+    );
 
     // Campaign evaluation: did this run satisfy the stage's objective?
     final s = stage;

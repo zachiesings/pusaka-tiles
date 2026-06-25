@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
-import '../../game/game_mode.dart';
+import '../../game/chart.dart';
 import '../../game/models/song.dart';
+import '../../game/progression.dart';
 import '../../game/songs.dart';
 import '../../game/tile_themes.dart';
 import '../../state/app_state.dart';
@@ -10,6 +11,7 @@ import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/display_text.dart';
 import '../game/game_screen.dart';
+import '../missions/missions_screen.dart';
 
 /// Dedicated song-select — its OWN screen (moved off the home so home stays
 /// spacious). Album-art-style cards with difficulty + best/stars, category
@@ -36,17 +38,27 @@ const _diffLabel = {_Diff.mudah: 'Mudah', _Diff.sedang: 'Sedang', _Diff.sulit: '
 const _diffColor = {_Diff.mudah: Palette.teal, _Diff.sedang: Palette.gold, _Diff.sulit: Palette.pink};
 
 class _SongSelectScreenState extends State<SongSelectScreen> {
-  GameMode _mode = GameMode.klasik;
+  PlayMode _playMode = PlayMode.endless;
+  Difficulty _difficulty = Difficulty.normal;
   int _tab = 0; // 0=Semua, 1=Mudah, 2=Sedang, 3=Sulit
   static const _tabs = ['Semua', 'Mudah', 'Sedang', 'Sulit'];
 
-  Future<void> _play(Song song) async {
+  // Modes the player can pick per song (Daily is launched from its own card).
+  static const _modes = [PlayMode.endless, PlayMode.practice, PlayMode.challenge];
+
+  Future<void> _launch(Song song, {PlayMode? play, Difficulty? difficulty, int? dailySeed}) async {
     final app = context.read<AppState>();
     app.stopHomeMusic();
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider<TilesGameController>(
-          create: (_) => TilesGameController(app, song, mode: _mode),
+          create: (_) => TilesGameController(
+            app,
+            song,
+            play: play ?? _playMode,
+            difficulty: difficulty ?? _difficulty,
+            dailySeed: dailySeed,
+          ),
           child: const TilesGameScreen(),
         ),
       ),
@@ -55,6 +67,13 @@ class _SongSelectScreenState extends State<SongSelectScreen> {
       app.startHomeMusic();
       setState(() {}); // refresh best/stars after a run
     }
+  }
+
+  void _launchDaily() {
+    final app = context.read<AppState>();
+    final pick = app.dailyPickToday();
+    _launch(SongCatalog.all[pick.songIndex],
+        play: PlayMode.daily, difficulty: pick.difficulty, dailySeed: pick.seed);
   }
 
   @override
@@ -80,19 +99,38 @@ class _SongSelectScreenState extends State<SongSelectScreen> {
                       icon: const Icon(Icons.arrow_back_ios_new, color: Palette.cream, size: 18),
                     ),
                     const Expanded(child: DisplayText('Pilih Lagu', size: 22)),
+                    _LevelChip(level: app.level, progress: app.levelProgress),
+                    IconButton(
+                      tooltip: 'Misi',
+                      onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const MissionsScreen())),
+                      icon: const Icon(Icons.flag_rounded, color: Palette.gold),
+                    ),
                   ],
                 ),
               ),
               // mode + instrument pickers
               _PickerRow(
                 label: 'Mode',
-                children: GameMode.values.map((m) {
-                  final sel = _mode == m;
+                children: _modes.map((m) {
+                  final sel = _playMode == m;
                   return _Chip(
-                    text: kModeParams[m]!.label,
+                    text: kPlayModes[m]!.label,
                     selected: sel,
                     color: Palette.gold,
-                    onTap: () => setState(() => _mode = m),
+                    onTap: () => setState(() => _playMode = m),
+                  );
+                }).toList(),
+              ),
+              _PickerRow(
+                label: 'Tingkat',
+                children: Difficulty.values.map((d) {
+                  final sel = _difficulty == d;
+                  return _Chip(
+                    text: kDifficulty[d]!.label,
+                    selected: sel,
+                    color: Palette.pink,
+                    onTap: () => setState(() => _difficulty = d),
                   );
                 }).toList(),
               ),
@@ -138,9 +176,18 @@ class _SongSelectScreenState extends State<SongSelectScreen> {
                   }),
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: _DailyCard(
+                  streak: app.dailyStreak,
+                  playedToday: app.dailyPlayedToday,
+                  best: app.dailyBest,
+                  onPlay: _launchDaily,
+                ),
+              ),
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
                   itemCount: songs.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (_, i) {
@@ -151,8 +198,9 @@ class _SongSelectScreenState extends State<SongSelectScreen> {
                       diff: _diffOf(s),
                       best: app.bestForSong(s.id),
                       stars: app.bestStars(s.id),
+                      mastery: app.songMasteryTier(s.id),
                       accent: TileTheme.active[idx % TileTheme.active.length],
-                      onTap: () => _play(s),
+                      onTap: () => _launch(s),
                     );
                   },
                 ),
@@ -188,6 +236,112 @@ class _PickerRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact player-level chip with a thin XP ring, shown in the header.
+class _LevelChip extends StatelessWidget {
+  final int level;
+  final double progress;
+  const _LevelChip({required this.level, required this.progress});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Palette.panel.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Palette.gold.withOpacity(0.4)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        SizedBox(
+          width: 18,
+          height: 18,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: progress,
+                strokeWidth: 2.5,
+                backgroundColor: Palette.gridLine,
+                valueColor: const AlwaysStoppedAnimation(Palette.gold),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text('Lv $level',
+            style: Typo.chip.copyWith(color: Palette.goldLt, fontSize: 13)),
+      ]),
+    );
+  }
+}
+
+/// "Lagu Hari Ini" — the deterministic Daily challenge with its streak.
+class _DailyCard extends StatelessWidget {
+  final int streak, best;
+  final bool playedToday;
+  final VoidCallback onPlay;
+  const _DailyCard({
+    required this.streak,
+    required this.best,
+    required this.playedToday,
+    required this.onPlay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onPlay,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Palette.violet, Palette.indigo],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: Palette.glow(Palette.violet, blur: 16, a: 0.3),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.today_rounded, color: Palette.goldLt, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Lagu Hari Ini',
+                      style: TextStyle(
+                          color: Palette.cream,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900)),
+                  Text(
+                      playedToday
+                          ? 'Selesai hari ini · skor $best'
+                          : 'Tantangan harian — sekali coba!',
+                      style: TextStyle(
+                          color: Palette.cream.withOpacity(0.7), fontSize: 12)),
+                ],
+              ),
+            ),
+            if (streak > 0) ...[
+              const Icon(Icons.local_fire_department_rounded,
+                  color: Palette.gold, size: 18),
+              const SizedBox(width: 3),
+              Text('$streak',
+                  style: const TextStyle(
+                      color: Palette.gold, fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(width: 8),
+            ],
+            Icon(playedToday ? Icons.check_circle_rounded : Icons.play_circle_fill_rounded,
+                color: Palette.goldLt, size: 30),
+          ],
+        ),
       ),
     );
   }
@@ -230,6 +384,7 @@ class _AlbumCard extends StatefulWidget {
   final Song song;
   final _Diff diff;
   final int best, stars;
+  final MasteryTier mastery;
   final Color accent;
   final VoidCallback onTap;
   const _AlbumCard({
@@ -237,6 +392,7 @@ class _AlbumCard extends StatefulWidget {
     required this.diff,
     required this.best,
     required this.stars,
+    required this.mastery,
     required this.accent,
     required this.onTap,
   });
@@ -335,6 +491,17 @@ class _AlbumCardState extends State<_AlbumCard> {
                           const SizedBox(width: 8),
                           Text('${widget.best}',
                               style: Typo.small.copyWith(color: Palette.cream.withOpacity(0.55))),
+                        ],
+                        if (widget.mastery != MasteryTier.pemula) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.workspace_premium_rounded,
+                              size: 13, color: Palette.goldLt),
+                          const SizedBox(width: 2),
+                          Text(Mastery.tierLabel[widget.mastery.index],
+                              style: Typo.small.copyWith(
+                                  color: Palette.goldLt,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 9.5)),
                         ],
                       ],
                     ),

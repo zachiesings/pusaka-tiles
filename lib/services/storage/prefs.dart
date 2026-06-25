@@ -83,4 +83,41 @@ class Prefs {
 
   int get gamesPlayed => _p.getInt(K.kGames) ?? 0;
   Future<void> setGamesPlayed(int v) => _p.setInt(K.kGames, v);
+
+  // ----- Progression / mastery / missions / daily -----
+  int get xp => _p.getInt(K.kXp) ?? 0;
+  Future<void> setXp(int v) => _p.setInt(K.kXp, v);
+
+  int songMastery(String songId) => _p.getInt(K.songMasteryKey(songId)) ?? 0;
+  Future<void> setSongMastery(String songId, int v) =>
+      _p.setInt(K.songMasteryKey(songId), v);
+
+  int get missionDay => _p.getInt(K.kMissionDay) ?? 0;
+  Future<void> setMissionDay(int v) => _p.setInt(K.kMissionDay, v);
+
+  List<int> get missionProgress => _csvInts(_p.getString(K.kMissionProg), 3);
+  Future<void> setMissionProgress(List<int> v) =>
+      _p.setString(K.kMissionProg, v.join(','));
+
+  List<bool> get missionClaimed =>
+      _csvInts(_p.getString(K.kMissionClaim), 3).map((e) => e != 0).toList();
+  Future<void> setMissionClaimed(List<bool> v) =>
+      _p.setString(K.kMissionClaim, v.map((e) => e ? 1 : 0).join(','));
+
+  int get dailyDay => _p.getInt(K.kDailyDay) ?? 0;
+  Future<void> setDailyDay(int v) => _p.setInt(K.kDailyDay, v);
+  int get dailyBest => _p.getInt(K.kDailyBest) ?? 0;
+  Future<void> setDailyBest(int v) => _p.setInt(K.kDailyBest, v);
+  int get dailyStreak => _p.getInt(K.kDailyStreak) ?? 0;
+  Future<void> setDailyStreak(int v) => _p.setInt(K.kDailyStreak, v);
+
+  static List<int> _csvInts(String? raw, int n) {
+    final list = List<int>.filled(n, 0);
+    if (raw == null || raw.isEmpty) return list;
+    final parts = raw.split(',');
+    for (var i = 0; i < n && i < parts.length; i++) {
+      list[i] = int.tryParse(parts[i]) ?? 0;
+    }
+    return list;
+  }
 }

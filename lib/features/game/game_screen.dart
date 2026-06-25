@@ -238,6 +238,7 @@ class TilesGameScreen extends StatelessWidget {
                   accuracy: gc.accuracy,
                   fullCombo: gc.fullCombo,
                   allPerfect: gc.allPerfect,
+                  reward: gc.reward,
                   isNewBest: gc.isNewBest,
                   won: gc.won,
                   isStage: gc.stage != null,
@@ -329,6 +330,7 @@ class _GameOverOverlay extends StatelessWidget {
   final String grade;
   final double accuracy; // 0..1 weighted
   final bool fullCombo, allPerfect;
+  final RunReward reward;
   final bool isNewBest;
   final bool won;
   final bool isStage, stageWon;
@@ -346,6 +348,7 @@ class _GameOverOverlay extends StatelessWidget {
     required this.accuracy,
     required this.fullCombo,
     required this.allPerfect,
+    required this.reward,
     required this.isNewBest,
     required this.won,
     this.isStage = false,
@@ -490,6 +493,22 @@ class _GameOverOverlay extends StatelessWidget {
                             fontWeight: FontWeight.w900)),
                   ),
                 ),
+            ],
+            if (reward.xpGained > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                reward.leveledUp
+                    ? '+${reward.xpGained} XP  •  LEVEL ${reward.newLevel}!'
+                    : '+${reward.xpGained} XP',
+                style: TextStyle(
+                    color: reward.leveledUp ? Palette.goldLt : Palette.teal,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800),
+              ),
+              for (final m in reward.missionsCompleted)
+                Text('✓ Misi: $m',
+                    style: const TextStyle(
+                        color: Palette.gold, fontSize: 11, fontWeight: FontWeight.w700)),
             ],
             const SizedBox(height: 10),
             TweenAnimationBuilder<double>(

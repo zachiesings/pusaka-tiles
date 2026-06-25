@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import '../game/chart.dart';
 import '../game/engine/tiles_engine.dart';
 import '../game/tile_themes.dart';
 import 'batik.dart';
@@ -76,6 +77,20 @@ class TilesBoardPainter extends CustomPainter {
       final lane = TileTheme.active;
       final color = lane[t.activeColumn % lane.length];
       BatikTile.paint(canvas, rect, color);
+      // Chord: paint the second simultaneous lane so it reads (and cues the
+      // optional second tap). Hold: a slim gold sustain cap down the tile.
+      if (t.kind == NoteKind.chord && t.chordLane >= 0) {
+        final r2 = Rect.fromLTWH(t.chordLane * laneW, top, laneW, h);
+        BatikTile.paint(canvas, r2, lane[t.chordLane % lane.length]);
+      } else if (t.kind == NoteKind.hold && h > pxPerBeat * 0.6) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromLTWH(rect.center.dx - laneW * 0.06, top + h * 0.12,
+                  laneW * 0.12, h * 0.76),
+              Radius.circular(laneW * 0.06)),
+          Paint()..color = Palette.goldLt.withOpacity(0.55),
+        );
+      }
       if (t.tapped) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(rect.deflate(laneW * 0.08), Radius.circular(laneW * 0.12)),

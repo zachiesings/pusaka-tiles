@@ -1,10 +1,29 @@
 import 'package:flutter/foundation.dart';
 import '../core/constants.dart';
+import '../game/chart.dart';
+import '../game/missions.dart';
+import '../game/progression.dart';
 import '../game/songs.dart';
 import '../game/tile_themes.dart';
 import '../services/storage/prefs.dart';
 import '../services/ads/ads_service.dart';
 import '../services/audio/audio_service.dart';
+
+/// What one finished run handed back to the player — surfaced on the result card.
+class RunReward {
+  final int xpGained;
+  final bool leveledUp;
+  final int newLevel;
+  final int coinsGained;
+  final List<String> missionsCompleted; // labels of missions finished this run
+  const RunReward({
+    this.xpGained = 0,
+    this.leveledUp = false,
+    this.newLevel = 0,
+    this.coinsGained = 0,
+    this.missionsCompleted = const [],
+  });
+}
 
 /// App-wide persisted state: per-song best scores + settings.
 class AppState extends ChangeNotifier {
@@ -19,6 +38,12 @@ class AppState extends ChangeNotifier {
   double _scrollSpeed;
   double _audioOffsetMs;
   double _touchOffsetMs;
+  int _xp;
+  // Today's missions (regenerated on a new calendar day) + their progress.
+  int _missionDay = 0;
+  List<Mission> _missions = const [];
+  List<int> _missionProgress = const [0, 0, 0];
+  List<bool> _missionClaimed = const [false, false, false];
   int _overCount = 0;
   int _coins;
   late Set<String> _unlockedThemes;
@@ -34,7 +59,8 @@ class AppState extends ChangeNotifier {
         _haptics = _prefs.haptics,
         _scrollSpeed = _prefs.scrollSpeed,
         _audioOffsetMs = _prefs.audioOffsetMs,
-        _touchOffsetMs = _prefs.touchOffsetMs {
+        _touchOffsetMs = _prefs.touchOffsetMs,
+        _xp = _prefs.xp {
     audio.enabled = _sound;
     audio.musicEnabled = _music;
     audio.inGameMode = _inGameMusic;
@@ -44,6 +70,7 @@ class AppState extends ChangeNotifier {
     TileTheme.active = TileThemeCatalog.byId(_selectedTheme).colors;
     _campaignUnlocked = _prefs.campaignUnlocked;
     _stageStars = _prefs.stageStars;
+    _ensureMissionsToday();
   }
 
   // ----- Campaign ("Perjalanan Nusantara") -----
@@ -253,4 +280,154 @@ class AppState extends ChangeNotifier {
   double get judgeOffsetMs => _audioOffsetMs + _touchOffsetMs;
 
   void markOnboarded() => _prefs.setFirstRunDone();
+
+  // ───────────────────────── Progression (T4) ─────────────────────────
+  int get xp => _xp;
+  int get level => Progression.levelForXp(_xp);
+  int get xpIntoLevel => Progression.xpIntoLevel(_xp);
+  int get xpForNextLevel => Progression.xpForNext(level);
+  double get levelProgress =>
+      xpForNextLevel == 0 ? 0 : (xpIntoLevel / xpForNextLevel).clamp(0.0, 1.0);
+
+  // ───────────────────────── Mastery (T4) ─────────────────────────
+  int songMastery(String id) => _prefs.songMastery(id);
+  MasteryTier songMasteryTier(String id) => Mastery.tierFor(_prefs.songMastery(id));
+
+  // ───────────────────────── Missions (T4) ─────────────────────────
+  int _todayInt() {
+    final n = DateTime.now();
+    return n.year * 10000 + n.month * 100 + n.day;
+  }
+
+  int _yesterdayInt() {
+    final y = DateTime.now().subtract(const Duration(days: 1));
+    return y.year * 10000 + y.month * 100 + y.day;
+  }
+
+  /// Load today's missions, regenerating + resetting on a new calendar day.
+  void _ensureMissionsToday() {
+    final today = _todayInt();
+    if (_missionDay == today && _missions.isNotEmpty) return;
+    final n = DateTime.now();
+    _missions = MissionCatalog.daily(n.year, n.month, n.day);
+    if (_prefs.missionDay == today) {
+      _missionProgress = List<int>.from(_prefs.missionProgress);
+      _missionClaimed = List<bool>.from(_prefs.missionClaimed);
+    } else {
+      _missionProgress = List<int>.filled(3, 0);
+      _missionClaimed = List<bool>.filled(3, false);
+      _prefs.setMissionDay(today);
+      _prefs.setMissionProgress(_missionProgress);
+      _prefs.setMissionClaimed(_missionClaimed);
+    }
+    _missionDay = today;
+  }
+
+  List<Mission> get missions {
+    _ensureMissionsToday();
+    return _missions;
+  }
+
+  List<int> get missionProgress {
+    _ensureMissionsToday();
+    return _missionProgress;
+  }
+
+  bool missionDone(int i) =>
+      i >= 0 && i < _missions.length && _missionProgress[i] >= _missions[i].target;
+
+  // ───────────────────────── Daily (T3) ─────────────────────────
+  int get dailyBest => _prefs.dailyBest;
+  int get dailyStreak => _prefs.dailyStreak;
+  bool get dailyPlayedToday => _prefs.dailyDay == _todayInt();
+  DailyPick dailyPickToday() {
+    final n = DateTime.now();
+    return dailyPick(n.year, n.month, n.day, SongCatalog.all.length);
+  }
+
+  void _recordDaily(int points) {
+    final today = _todayInt();
+    if (_prefs.dailyDay == today) {
+      if (points > _prefs.dailyBest) _prefs.setDailyBest(points);
+    } else {
+      final newStreak = (_prefs.dailyDay == _yesterdayInt()) ? _prefs.dailyStreak + 1 : 1;
+      _prefs.setDailyStreak(newStreak);
+      _prefs.setDailyDay(today);
+      _prefs.setDailyBest(points);
+    }
+  }
+
+  /// Records a finished run: awards XP, song mastery, advances daily missions
+  /// (auto-granting their rewards on completion), and updates the Daily streak.
+  /// Returns what to celebrate on the result card.
+  RunReward recordRun({
+    required String songId,
+    required Difficulty difficulty,
+    required PlayMode play,
+    required int points,
+    required double accuracy,
+    required String grade,
+    required int bestCombo,
+    required int perfects,
+    required bool fullCombo,
+    required bool allPerfect,
+    required bool cleared,
+  }) {
+    final beforeLevel = level;
+    var xpGain = Progression.runXp(
+      points: points,
+      accuracy: accuracy,
+      difficulty: difficulty,
+      fullCombo: fullCombo,
+      allPerfect: allPerfect,
+    );
+
+    // Song mastery — full points on a clean clear, half otherwise.
+    final mPts = Mastery.runPoints(
+        difficulty: difficulty, grade: grade, fullCombo: fullCombo);
+    final mAward = cleared ? mPts : (mPts ~/ 2);
+    if (mAward > 0) {
+      _prefs.setSongMastery(songId, _prefs.songMastery(songId) + mAward);
+    }
+
+    // Daily missions.
+    _ensureMissionsToday();
+    final stats = RunStats(
+      score: points,
+      perfects: perfects,
+      bestCombo: bestCombo,
+      fullCombo: fullCombo,
+      cleared: cleared,
+      difficultyIndex: difficulty.index,
+    );
+    var coinsGain = 0;
+    final done = <String>[];
+    for (var i = 0; i < _missions.length; i++) {
+      final m = _missions[i];
+      _missionProgress[i] = m.advance(_missionProgress[i], stats);
+      if (m.done(_missionProgress[i]) && !_missionClaimed[i]) {
+        _missionClaimed[i] = true;
+        coinsGain += m.rewardCoins;
+        xpGain += m.rewardXp;
+        done.add(m.label);
+      }
+    }
+    _prefs.setMissionProgress(_missionProgress);
+    _prefs.setMissionClaimed(_missionClaimed);
+
+    if (play == PlayMode.daily) _recordDaily(points);
+
+    _xp += xpGain;
+    _prefs.setXp(_xp);
+    if (coinsGain > 0) addCoins(coinsGain); // persists + notifies
+    final afterLevel = Progression.levelForXp(_xp);
+    notifyListeners();
+    return RunReward(
+      xpGained: xpGain,
+      leveledUp: afterLevel > beforeLevel,
+      newLevel: afterLevel,
+      coinsGained: coinsGain,
+      missionsCompleted: done,
+    );
+  }
 }

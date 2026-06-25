@@ -64,6 +64,16 @@ class K {
   static const String kAudioOffsetMs = 'pt_audio_offset_ms'; // double, ms
   static const String kTouchOffsetMs = 'pt_touch_offset_ms'; // double, ms
 
+  // ----- Progression / mastery / missions / daily (Waves T2–T4) -----
+  static const String kXp            = 'pt_xp';            // int, lifetime XP
+  static const String kMissionDay    = 'pt_mission_day';   // int yyyymmdd
+  static const String kMissionProg   = 'pt_mission_prog';  // CSV of 3 ints
+  static const String kMissionClaim  = 'pt_mission_claim'; // CSV of 3 0/1
+  static const String kDailyDay      = 'pt_daily_day';     // int yyyymmdd last played
+  static const String kDailyBest     = 'pt_daily_best';    // int best score today
+  static const String kDailyStreak   = 'pt_daily_streak';  // int consecutive days
+  static String songMasteryKey(String songId) => 'pt_mastery_$songId';
+
   /// In-game accompaniment options ("Musik saat bermain"), separate from the
   /// home BGM. Default = pad (subtle ambient drone).
   static const List<MapEntry<String, String>> inGameMusicOptions = [
