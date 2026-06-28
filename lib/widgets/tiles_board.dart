@@ -12,6 +12,7 @@ class TilesBoardPainter extends CustomPainter {
   final int flashLane;
   final double flashT;
   final bool colorblind; // draw a per-lane shape so cues aren't colour-only
+  final int imbalGlow; // # of upcoming tiles that form the active imbal "call"
   final double repaint;
 
   TilesBoardPainter({
@@ -19,7 +20,8 @@ class TilesBoardPainter extends CustomPainter {
     this.flashLane = -1,
     this.flashT = 0,
     this.colorblind = false,
-  }) : repaint = engine.scroll + flashT;
+    this.imbalGlow = 0,
+  }) : repaint = engine.scroll + flashT + imbalGlow;
 
   /// A distinct shape per lane (circle/triangle/square/diamond) drawn on a tile
   /// when the colourblind-safe setting is on — shape + lane position carry the
@@ -126,6 +128,22 @@ class TilesBoardPainter extends CustomPainter {
           Paint()..color = Palette.goldLt.withOpacity(0.55),
         );
       }
+      // Imbal "call": ghost-glow the next few upcoming tiles the player must
+      // answer, so the figure reads as a single phrase across the lanes.
+      if (imbalGlow > 0 &&
+          i >= engine.nextTap &&
+          i < engine.nextTap + imbalGlow &&
+          !t.tapped) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              rect.deflate(laneW * 0.04), Radius.circular(laneW * 0.14)),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = Palette.violet.withOpacity(0.9)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        );
+      }
       if (colorblind && !t.tapped) {
         final s = (laneW * 0.30).clamp(7.0, 20.0);
         final cyTop = top + s + 2; // sit just inside the tile's top edge
@@ -144,5 +162,7 @@ class TilesBoardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant TilesBoardPainter old) =>
-      old.repaint != repaint || old.colorblind != colorblind;
+      old.repaint != repaint ||
+      old.colorblind != colorblind ||
+      old.imbalGlow != imbalGlow;
 }

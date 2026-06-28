@@ -190,6 +190,17 @@ class EnsembleDirector {
     }
   }
 
+  /// Lock in a higher layer — the imbal reward. Wakes the next layer on the
+  /// upcoming gong and clears any pending sleep, so a nailed call audibly fills
+  /// out the ensemble.
+  void promote() {
+    if (_target < 4) {
+      _target += 1;
+      _pendingWake = true;
+      _restoreArmed = false;
+    }
+  }
+
   /// A clean tap (Good or better). Returns the bonang companion note to sound
   /// alongside the lead, or null when that layer is asleep. Also advances the
   /// gentle [cfg.restoreTaps] re-wake after a break.
