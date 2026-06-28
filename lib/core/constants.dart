@@ -60,6 +60,11 @@ class K {
   ];
   static const String kHaptics   = 'pt_haptics';
   static const String kInGameMusic = 'pt_ingame_music'; // off | pad | groove
+  // ----- Accessibility & the awakening ensemble -----
+  static const String kReduceMotion = 'pt_reduce_motion'; // bool, degrade juice
+  static const String kColorblind   = 'pt_colorblind';    // bool, shape/position lane cues
+  static const String kEnsemble     = 'pt_ensemble';      // bool, "Ensemble Awakens" layering
+  static const String kImbal        = 'pt_imbal';         // bool, call-and-response moments
   static const String kScrollSpeed   = 'pt_scroll_speed';    // double, tempo multiplier
   static const String kAudioOffsetMs = 'pt_audio_offset_ms'; // double, ms
   static const String kTouchOffsetMs = 'pt_touch_offset_ms'; // double, ms

@@ -35,6 +35,10 @@ class AppState extends ChangeNotifier {
   bool _music;
   String _inGameMusic;
   bool _haptics;
+  bool _reduceMotion;
+  bool _colorblind;
+  bool _ensemble;
+  bool _imbal;
   double _scrollSpeed;
   double _audioOffsetMs;
   double _touchOffsetMs;
@@ -57,6 +61,10 @@ class AppState extends ChangeNotifier {
         _inGameMusic = _prefs.inGameMusic,
         _coins = _prefs.coins,
         _haptics = _prefs.haptics,
+        _reduceMotion = _prefs.reduceMotion,
+        _colorblind = _prefs.colorblind,
+        _ensemble = _prefs.ensemble,
+        _imbal = _prefs.imbal,
         _scrollSpeed = _prefs.scrollSpeed,
         _audioOffsetMs = _prefs.audioOffsetMs,
         _touchOffsetMs = _prefs.touchOffsetMs,
@@ -230,6 +238,18 @@ class AppState extends ChangeNotifier {
     if (_sound) audio.playNote(index);
   }
 
+  /// Sound a layered ensemble note (bonang shimmer / pitched colotomic) from an
+  /// explicit instrument [folder], on the dedicated ensemble pool.
+  void playEnsembleNote(String folder, int index, double volume) {
+    if (_sound) audio.playVoice(folder, index, volume: volume);
+  }
+
+  /// Sound a colotomic percussion one-shot ('gong' | 'kendang' | ...). Falls
+  /// back to [fallback] until the dedicated ensemble samples are rendered.
+  void playColotomic(String name, double volume, {String? fallback}) {
+    if (_sound) audio.playPercussion(name, volume: volume, fallback: fallback);
+  }
+
   void playWrong() {
     if (_sound) audio.playWrong();
   }
@@ -248,6 +268,42 @@ class AppState extends ChangeNotifier {
   void setHaptics(bool v) {
     _haptics = v;
     _prefs.setHaptics(v);
+    notifyListeners();
+  }
+
+  // ----- Accessibility & the awakening ensemble -----
+  /// Reduced motion: degrade the heavy juice (particle storms, zoom-punch, scene
+  /// breathing) to gentle fades. The gameplay-critical cues still show.
+  bool get reduceMotion => _reduceMotion;
+  void setReduceMotion(bool v) {
+    _reduceMotion = v;
+    _prefs.setReduceMotion(v);
+    notifyListeners();
+  }
+
+  /// Colourblind-safe lane cues: never rely on colour alone — add shape/position
+  /// markers to lanes and tiles.
+  bool get colorblind => _colorblind;
+  void setColorblind(bool v) {
+    _colorblind = v;
+    _prefs.setColorblind(v);
+    notifyListeners();
+  }
+
+  /// "Ensemble Awakens" layering — the core hook. On by default; can be muted for
+  /// players who want the bare melody.
+  bool get ensemble => _ensemble;
+  void setEnsemble(bool v) {
+    _ensemble = v;
+    _prefs.setEnsemble(v);
+    notifyListeners();
+  }
+
+  /// Imbal call-and-response moments.
+  bool get imbal => _imbal;
+  void setImbal(bool v) {
+    _imbal = v;
+    _prefs.setImbal(v);
     notifyListeners();
   }
 

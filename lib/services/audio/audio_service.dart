@@ -5,6 +5,12 @@ import 'package:audioplayers/audioplayers.dart';
 class AudioService {
   final List<AudioPlayer> _pool;
   int _next = 0;
+  // Separate, smaller pool for the awakening ensemble (bonang shimmer + colotomic
+  // gong/kenong/kempul + kendang). Kept apart from the melody pool so the lead —
+  // the player's taps — is never starved of a voice (HARD CONSTRAINT: the melody
+  // always dominates the mix).
+  final List<AudioPlayer> _ensemble;
+  int _ensembleNext = 0;
   bool enabled = true;
 
   final AudioPlayer _bgm = AudioPlayer();
@@ -15,8 +21,10 @@ class AudioService {
   String? _backingSong;
   String instrument = 'piano'; // selected traditional voice folder
 
-  AudioService({int voices = 8}) : _pool = List.generate(voices, (_) => AudioPlayer()) {
-    for (final p in _pool) {
+  AudioService({int voices = 8, int ensembleVoices = 6})
+      : _pool = List.generate(voices, (_) => AudioPlayer()),
+        _ensemble = List.generate(ensembleVoices, (_) => AudioPlayer()) {
+    for (final p in [..._pool, ..._ensemble]) {
       p.setReleaseMode(ReleaseMode.stop);
       // lowLatency = SoundPool (Android) / preloaded buffer path: the lowest-
       // latency playback audioplayers exposes. Notes must fire the instant a
@@ -26,6 +34,10 @@ class AudioService {
     _bgm.setReleaseMode(ReleaseMode.loop);
     _backing.setReleaseMode(ReleaseMode.loop);
   }
+
+  /// Master trim for the awakening ensemble — keeps every layered voice safely
+  /// under the tapped melody no matter how full the stack gets.
+  static const double _ensembleTrim = 0.5;
 
   /// In-game accompaniment mode (separate from the home BGM): off | pad | groove.
   String inGameMode = 'pad';
@@ -110,8 +122,38 @@ class AudioService {
   void playWrong() => _play('audio/wrong.wav', volume: 0.8);
   void playTap() => _play('audio/tap.wav', volume: 0.6);
 
+  /// Play a note from an explicit instrument [folder] on the ensemble pool —
+  /// used for the bonang shimmer and pitched colotomic voices. [folder] should
+  /// resolve to assets/audio/<folder>/note_XX.wav. Falls back silently if the
+  /// asset is missing (e.g. before the gamelan/ensemble render lands).
+  void playVoice(String folder, int index, {double volume = 0.5}) {
+    if (!enabled || volume <= 0) return;
+    final i = index < 0 ? 0 : (index > 12 ? 12 : index);
+    _playEnsemble('audio/$folder/note_${i.toString().padLeft(2, '0')}.wav',
+        volume: volume * _ensembleTrim);
+  }
+
+  /// Play a percussion/structural one-shot by [name] (e.g. 'gong', 'kendang')
+  /// from assets/audio/ensemble/<name>.wav. Until that dedicated set is rendered
+  /// the caller passes a [fallback] asset that always exists (e.g. 'audio/tap.wav').
+  void playPercussion(String name, {double volume = 0.5, String? fallback}) {
+    if (!enabled || volume <= 0) return;
+    _playEnsemble('audio/ensemble/$name.wav',
+        volume: volume * _ensembleTrim, fallback: fallback);
+  }
+
+  void _playEnsemble(String asset, {double volume = 0.5, String? fallback}) {
+    final p = _ensemble[_ensembleNext];
+    _ensembleNext = (_ensembleNext + 1) % _ensemble.length;
+    p.play(AssetSource(asset), volume: volume).catchError((Object _) {
+      if (fallback != null) {
+        p.play(AssetSource(fallback), volume: volume).catchError((Object _) {});
+      }
+    });
+  }
+
   void dispose() {
-    for (final p in _pool) {
+    for (final p in [..._pool, ..._ensemble]) {
       p.dispose();
     }
     _bgm.dispose();
