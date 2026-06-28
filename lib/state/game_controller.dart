@@ -40,6 +40,9 @@ class TilesGameController extends ChangeNotifier {
   final List<int> _preEcho = <int>[]; // queued call pitches to arpeggiate (the "call")
   double _preEchoT = 0; // seconds until the next pre-echo note
   int imbalEvent = 0; // bumped on a SUCCESSFUL imbal (UI flourish hook)
+  // Peak ensemble reached this run — surfaced on the result card ("fullness").
+  int peakLayers = 0; // 0..3 ensemble layers beyond the lead
+  double peakFullness = 0; // 0..1 fullest the ensemble got
   bool get imbalActive => _imbalOn && imbal.active;
   double get imbalProgress => imbal.progress;
   int get imbalTotal => imbal.total;
@@ -167,6 +170,8 @@ class TilesGameController extends ChangeNotifier {
     _lastGongCycle = -1;
     _imbalCall = const [];
     imbalEvent = 0;
+    peakLayers = 0;
+    peakFullness = 0;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
     // Swap home gendhing → this song's humanized backing bed (under gameplay).
@@ -219,6 +224,8 @@ class TilesGameController extends ChangeNotifier {
     // and sound any colotomic punctuation that fell due this frame.
     if (_ensembleOn && engine.started && !engine.gameOver && !engine.completed) {
       final hits = ensemble.tick(engine.scroll, dt.clamp(0.0, 0.05));
+      if (ensemble.activeLayers > peakLayers) peakLayers = ensemble.activeLayers;
+      if (ensemble.fullness > peakFullness) peakFullness = ensemble.fullness;
       for (final h in hits) {
         if (h.note >= 0) {
           app.playEnsembleNote(ensemble.cfg.ensembleVoice, h.note, h.gain);
