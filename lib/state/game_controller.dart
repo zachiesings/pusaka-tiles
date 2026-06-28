@@ -6,6 +6,7 @@ import '../game/chart.dart';
 import '../game/engine/tiles_engine.dart';
 import '../game/ensemble.dart';
 import '../game/game_mode.dart';
+import '../game/imbal.dart';
 import '../game/models/song.dart';
 import '../game/stage.dart';
 import 'app_state.dart';
@@ -29,6 +30,21 @@ class TilesGameController extends ChangeNotifier {
   final EnsembleDirector ensemble = EnsembleDirector();
   bool _ensembleOn = true; // mirrors the app setting at run start
   bool get ensembleOn => _ensembleOn;
+
+  /// Imbal — the call-and-response signature moment. Armed once per gongan; the
+  /// player answers the ghosted figure to lock in a layer + boost FEVER.
+  final ImbalManager imbal = ImbalManager();
+  bool _imbalOn = true;
+  int _lastGongCycle = -1; // tracks gong-cycle changes to arm calls
+  List<int> _imbalCall = const []; // the armed figure's pitches (for the flourish)
+  final List<int> _preEcho = <int>[]; // queued call pitches to arpeggiate (the "call")
+  double _preEchoT = 0; // seconds until the next pre-echo note
+  int imbalEvent = 0; // bumped on a SUCCESSFUL imbal (UI flourish hook)
+  bool get imbalActive => _imbalOn && imbal.active;
+  double get imbalProgress => imbal.progress;
+  int get imbalTotal => imbal.total;
+  int get imbalAnswered => imbal.answered;
+  bool get imbalTeaching => imbal.teaching;
   PlayMode _effPlay = PlayMode.endless; // resolved play mode (campaign-derived)
   RunReward reward = const RunReward(); // progression rewards (valid after _finish)
   Ticker? _ticker;
@@ -143,6 +159,14 @@ class TilesGameController extends ChangeNotifier {
     ensemble.configure(
         const EnsembleConfig().copyWith(gonganBeats: song.gonganBeats));
     ensemble.reset();
+    // Imbal cadence/length by mode (spec §6): Santai gentler & rarer, Cepat
+    // frequent with longer figures.
+    _imbalOn = app.imbal && app.ensemble;
+    imbal.configure(_imbalConfigFor(mode));
+    imbal.reset();
+    _lastGongCycle = -1;
+    _imbalCall = const [];
+    imbalEvent = 0;
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
     // Swap home gendhing → this song's humanized backing bed (under gameplay).
@@ -153,6 +177,19 @@ class TilesGameController extends ChangeNotifier {
   void restart() {
     _begin();
     notifyListeners();
+  }
+
+  /// Imbal cadence/length per mode (spec §6).
+  ImbalConfig _imbalConfigFor(GameMode m) {
+    switch (m) {
+      case GameMode.santai:
+        return const ImbalConfig(everyGongans: 2, callLength: 4);
+      case GameMode.cepat:
+        return const ImbalConfig(everyGongans: 1, callLength: 8);
+      case GameMode.klasik:
+      case GameMode.penuh:
+        return const ImbalConfig(everyGongans: 1, callLength: 6);
+    }
   }
 
   bool get isFinite => engine.finite;
@@ -187,6 +224,35 @@ class TilesGameController extends ChangeNotifier {
           app.playEnsembleNote(ensemble.cfg.ensembleVoice, h.note, h.gain);
         } else {
           app.playColotomic(h.voice, h.gain, fallback: 'audio/tap.wav');
+        }
+      }
+    }
+    // Imbal: at each new gong cycle, maybe arm a call over the upcoming tiles;
+    // arpeggiate the "call" so the player hears the figure before answering it.
+    if (_imbalOn && engine.started && !engine.gameOver && !engine.completed) {
+      final cycle = (engine.scroll / song.gonganBeats).floor();
+      if (cycle != _lastGongCycle) {
+        _lastGongCycle = cycle;
+        final up = <int>[];
+        for (var i = engine.nextTap;
+            i < engine.rows.length && up.length < imbal.total;
+            i++) {
+          up.add(engine.rows[i].noteIndex);
+        }
+        final call = imbal.maybeArm(cycle, up);
+        if (call != null) {
+          _imbalCall = call;
+          _preEcho
+            ..clear()
+            ..addAll(call);
+          _preEchoT = 0;
+        }
+      }
+      if (_preEcho.isNotEmpty) {
+        _preEchoT -= dt;
+        if (_preEchoT <= 0) {
+          app.playEnsembleNote(ensemble.cfg.ensembleVoice, _preEcho.removeAt(0), 0.5);
+          _preEchoT = 0.13; // ~130ms between call notes — reads as a figure
         }
       }
     }
@@ -260,6 +326,30 @@ class TilesGameController extends ChangeNotifier {
         // A break puts the most-recently-woken instrument back to sleep.
         if (_ensembleOn) ensemble.onBreak();
       }
+      // Imbal: answer the active call. Nail the whole figure → lock a layer,
+      // boost FEVER, and play an ornamented flourish (a missed figure just
+      // continues, no punishment).
+      if (_imbalOn && imbal.active) {
+        final res = imbal.onAnswer(clean: tier >= Judge.kGood);
+        if (res != null && res.success) {
+          ensemble.promote();
+          feverMeter += 0.4;
+          if (feverMeter >= 1 && !feverActive) {
+            feverMeter = 0;
+            feverTimeLeft = 6;
+            feverEvent++;
+          }
+          imbalEvent++;
+          for (final p in _imbalCall.reversed) {
+            app.playEnsembleNote(
+                ensemble.cfg.ensembleVoice, p + 7 <= 12 ? p + 7 : p, 0.6);
+          }
+          if (app.haptics) {
+            HapticFeedback.mediumImpact();
+            HapticFeedback.heavyImpact(); // the satisfying imbal double-pulse
+          }
+        }
+      }
       app.playNote(note);
       if (app.haptics) {
         if (feverJustStarted) {
@@ -285,6 +375,7 @@ class TilesGameController extends ChangeNotifier {
   void _finish() {
     if (_scored) return;
     _scored = true;
+    imbal.cancel();
     _ticker?.stop();
     isNewBest = app.submitScore(song.id, points);
     final len = song.length;

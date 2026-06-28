@@ -141,6 +141,104 @@ class EnsembleGlow extends StatelessWidget {
   }
 }
 
+/// A floating banner shown while an imbal call is active: it names the moment,
+/// shows answer progress as dots, and — the first time — teaches wordlessly
+/// ("watch… then answer"). Pulses with the gong breath.
+class ImbalBanner extends StatelessWidget {
+  final TilesGameController gc;
+  final bool reduceMotion;
+  const ImbalBanner({super.key, required this.gc, this.reduceMotion = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!gc.imbalActive) return const SizedBox.shrink();
+    final breath = reduceMotion ? 0.5 : gc.ensemble.gongBreath;
+    final total = gc.imbalTotal;
+    final answered = gc.imbalAnswered;
+    final label = gc.imbalTeaching ? 'IMBAL · tirukan iramanya' : 'IMBAL · jawab!';
+    return IgnorePointer(
+      child: Align(
+        alignment: const Alignment(0, -0.82),
+        child: Transform.scale(
+          scale: 1.0 + 0.05 * breath,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: Palette.violet.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                    color: Palette.violet.withOpacity(0.5 + 0.3 * breath),
+                    blurRadius: 14 + 8 * breath),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.hearing_rounded, size: 16, color: Palette.cream),
+                const SizedBox(width: 8),
+                Text(label,
+                    style: Typo.chip.copyWith(color: Palette.cream, fontSize: 12)),
+                const SizedBox(width: 10),
+                for (var i = 0; i < total; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i < answered ? Palette.goldLt : Palette.cream.withOpacity(0.3),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A one-shot gold flourish that fires when [event] changes (a nailed imbal).
+/// Stateless: re-keying on [event] restarts the [TweenAnimationBuilder].
+class ImbalFlourish extends StatelessWidget {
+  final int event;
+  const ImbalFlourish({super.key, required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    if (event == 0) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey(event),
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 750),
+          curve: Curves.easeOut,
+          builder: (_, t, __) {
+            final opacity = (t < 0.2 ? t / 0.2 : (1 - (t - 0.2) / 0.8)).clamp(0.0, 1.0);
+            return Opacity(
+              opacity: opacity,
+              child: Transform.scale(
+                scale: 0.7 + 0.6 * t,
+                child: Text('IMBAL!',
+                    style: Typo.judge.copyWith(
+                      color: Palette.goldLt,
+                      shadows: [
+                        Shadow(color: Palette.gold.withOpacity(0.7), blurRadius: 24),
+                      ],
+                    )),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _GlowPainter extends CustomPainter {
   final double fullness; // 0..1 ensemble fullness
   final double breath; // 0..1 gong breathing

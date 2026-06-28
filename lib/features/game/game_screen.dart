@@ -172,7 +172,10 @@ class TilesGameScreen extends StatelessWidget {
                                     engine: e,
                                     flashLane: gc.flashLane,
                                     flashT: gc.flashT,
-                                    colorblind: app.colorblind)),
+                                    colorblind: app.colorblind,
+                                    imbalGlow: gc.imbalActive
+                                        ? (gc.imbalTotal - gc.imbalAnswered)
+                                        : 0)),
                             // Rich pooled particle bursts / ripples / flash per tap
                             // (shares the board's coordinate space; taps pass through).
                             Positioned.fill(child: _GameFxLayer(gc: gc)),
@@ -181,6 +184,13 @@ class TilesGameScreen extends StatelessWidget {
                               Positioned.fill(
                                   child: EnsembleGlow(
                                       gc: gc, reduceMotion: app.reduceMotion)),
+                            // Imbal call-and-response: floating banner + the
+                            // gold flourish when a figure is nailed.
+                            if (gc.imbalActive)
+                              Positioned.fill(
+                                  child: ImbalBanner(
+                                      gc: gc, reduceMotion: app.reduceMotion)),
+                            Positioned.fill(child: ImbalFlourish(event: gc.imbalEvent)),
                             Row(
                               children: List.generate(
                                 K.columns,
