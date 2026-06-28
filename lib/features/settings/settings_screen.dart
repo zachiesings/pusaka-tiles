@@ -35,6 +35,31 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              // ---- The awakening ensemble + accessibility ----
+              SoftCard(
+                glow: Palette.gold,
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Column(
+                  children: [
+                    _toggle(Icons.auto_awesome_rounded, 'Ensemble Membangun',
+                        'Instrumen gamelan bangun satu per satu saat combo-mu tumbuh',
+                        app.ensemble, app.setEnsemble),
+                    _divider(),
+                    _toggle(Icons.hearing_rounded, 'Imbal (sahut-sahutan)',
+                        'Momen panggilan & jawaban dari ensemble',
+                        app.imbal, app.setImbal),
+                    _divider(),
+                    _toggle(Icons.motion_photos_off_rounded, 'Kurangi gerak',
+                        'Redam efek partikel & getaran visual',
+                        app.reduceMotion, app.setReduceMotion),
+                    _divider(),
+                    _toggle(Icons.palette_rounded, 'Mode buta warna',
+                        'Tambah bentuk per-lajur, tak hanya warna',
+                        app.colorblind, app.setColorblind),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
               // ---- Feel: note scroll-speed + per-device calibration ----
               SoftCard(
                 glow: Palette.teal,

@@ -191,7 +191,7 @@ class TilesGameController extends ChangeNotifier {
       }
     }
     if (engine.gameOver && !wasOver) {
-      app.playWrong();
+      app.playChoke(); // a missed tile chokes musically, never a buzzer
       _finish();
     } else if (engine.completed && !wasDone) {
       won = true;
@@ -275,7 +275,7 @@ class TilesGameController extends ChangeNotifier {
         _finish();
       }
     } else {
-      app.playWrong();
+      app.playChoke(); // wrong lane ends the run — choke, don't buzz
       if (app.haptics) HapticFeedback.mediumImpact();
       _finish();
     }

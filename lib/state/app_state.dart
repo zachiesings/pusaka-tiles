@@ -254,6 +254,11 @@ class AppState extends ChangeNotifier {
     if (_sound) audio.playWrong();
   }
 
+  /// A musical "choke" for a missed/failed note (damped gong, not a buzzer).
+  void playChoke() {
+    if (_sound) audio.playChoke();
+  }
+
   void playTap() {
     if (_sound) audio.playTap();
   }

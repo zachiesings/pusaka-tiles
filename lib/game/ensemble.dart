@@ -126,6 +126,16 @@ class EnsembleDirector {
   double gainOf(EnsembleLayer l) => _gain[l.index];
   bool isAwake(EnsembleLayer l) => _gain[l.index] > 0.5;
 
+  /// 0..1 position through the current gong cycle (0 = on the downbeat).
+  double get gongPhase {
+    final p = (_scroll % cfg.gonganBeats) / cfg.gonganBeats;
+    return p.isNaN ? 0 : p;
+  }
+
+  /// A gentle 0..1 "breathing" value for the scene, swelling across the gongan
+  /// and settling on the gong — drives the subtle scale/zoom on the gong cycle.
+  double get gongBreath => 0.5 - 0.5 * math.cos(2 * math.pi * gongPhase);
+
   /// The combo threshold a given layer requires (for telegraphing the *next*
   /// instrument to wake — see the wordless teaching in §4.8).
   int comboFor(EnsembleLayer l) {

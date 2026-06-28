@@ -11,10 +11,45 @@ class TilesBoardPainter extends CustomPainter {
   final TilesEngine engine;
   final int flashLane;
   final double flashT;
+  final bool colorblind; // draw a per-lane shape so cues aren't colour-only
   final double repaint;
 
-  TilesBoardPainter({required this.engine, this.flashLane = -1, this.flashT = 0})
-      : repaint = engine.scroll + flashT;
+  TilesBoardPainter({
+    required this.engine,
+    this.flashLane = -1,
+    this.flashT = 0,
+    this.colorblind = false,
+  }) : repaint = engine.scroll + flashT;
+
+  /// A distinct shape per lane (circle/triangle/square/diamond) drawn on a tile
+  /// when the colourblind-safe setting is on — shape + lane position carry the
+  /// cue without relying on colour.
+  static void _laneShape(Canvas canvas, Offset c, double s, int lane, Paint p) {
+    switch (lane % 4) {
+      case 0:
+        canvas.drawCircle(c, s * 0.5, p);
+        break;
+      case 1:
+        final path = Path()
+          ..moveTo(c.dx, c.dy - s * 0.55)
+          ..lineTo(c.dx + s * 0.55, c.dy + s * 0.45)
+          ..lineTo(c.dx - s * 0.55, c.dy + s * 0.45)
+          ..close();
+        canvas.drawPath(path, p);
+        break;
+      case 2:
+        canvas.drawRect(Rect.fromCenter(center: c, width: s, height: s), p);
+        break;
+      default:
+        final path = Path()
+          ..moveTo(c.dx, c.dy - s * 0.6)
+          ..lineTo(c.dx + s * 0.6, c.dy)
+          ..lineTo(c.dx, c.dy + s * 0.6)
+          ..lineTo(c.dx - s * 0.6, c.dy)
+          ..close();
+        canvas.drawPath(path, p);
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -91,6 +126,13 @@ class TilesBoardPainter extends CustomPainter {
           Paint()..color = Palette.goldLt.withOpacity(0.55),
         );
       }
+      if (colorblind && !t.tapped) {
+        final s = (laneW * 0.30).clamp(7.0, 20.0);
+        final cyTop = top + s + 2; // sit just inside the tile's top edge
+        final cy = cyTop < bottom ? cyTop : (top + bottom) / 2;
+        _laneShape(canvas, Offset(rect.center.dx, cy), s, t.activeColumn,
+            Paint()..color = Colors.white.withOpacity(0.85));
+      }
       if (t.tapped) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(rect.deflate(laneW * 0.08), Radius.circular(laneW * 0.12)),
@@ -101,5 +143,6 @@ class TilesBoardPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant TilesBoardPainter old) => old.repaint != repaint;
+  bool shouldRepaint(covariant TilesBoardPainter old) =>
+      old.repaint != repaint || old.colorblind != colorblind;
 }
