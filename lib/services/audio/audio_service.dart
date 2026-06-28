@@ -122,6 +122,15 @@ class AudioService {
   void playWrong() => _play('audio/wrong.wav', volume: 0.8);
   void playTap() => _play('audio/tap.wav', volume: 0.6);
 
+  /// A "choked" miss — a damped low gong rather than a harsh buzzer, so even a
+  /// failed run stays musical (spec §4.1). Plays the lowest gamelan note quietly
+  /// on the ensemble pool, falling back to the default low note.
+  void playChoke() {
+    if (!enabled) return;
+    _playEnsemble('audio/gamelan/note_00.wav',
+        volume: 0.5, fallback: 'audio/note_00.wav');
+  }
+
   /// Play a note from an explicit instrument [folder] on the ensemble pool —
   /// used for the bonang shimmer and pitched colotomic voices. [folder] should
   /// resolve to assets/audio/<folder>/note_XX.wav. Falls back silently if the

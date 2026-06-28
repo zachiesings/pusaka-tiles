@@ -115,6 +115,13 @@ void main() {
       expect(d.nextSleeping, EnsembleLayer.colotomic);
     });
 
+    test('gong phase + breath track position through the cycle', () {
+      final d = dir(gongan: 16);
+      advance(d, 0, 8); // halfway through the 16-beat gong cycle
+      expect(d.gongPhase, closeTo(0.5, 0.03));
+      expect(d.gongBreath, greaterThan(0.9)); // breath swells to mid-cycle
+    });
+
     test('reset returns to a fresh lead-only run', () {
       final d = dir();
       d.onCombo(35);

@@ -8,6 +8,7 @@ import '../../services/ads/ads_service.dart';
 import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
+import '../../widgets/ensemble_hud.dart';
 import '../../widgets/mascot.dart';
 import '../../widgets/tiles_mascot.dart';
 import '../../widgets/tiles_board.dart';
@@ -119,6 +120,10 @@ class TilesGameScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // The awakening ensemble — instrument chips light as layers
+                  // wake; the next one pulses toward its combo threshold.
+                  if (gc.ensembleOn)
+                    EnsembleBar(gc: gc, reduceMotion: app.reduceMotion),
                   // Campaign objective bar (only when playing a stage)
                   if (gc.stage != null) _ObjectiveBar(gc: gc),
                   // "Lagu Penuh" progress to the end of the song
@@ -151,17 +156,31 @@ class TilesGameScreen extends StatelessWidget {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(8),
-                      child: ClipRRect(
+                      child: Transform.scale(
+                        // Scene "breathes" on the gong cycle — a whisper of scale
+                        // tied to the ensemble's gongan (off under reduced motion).
+                        scale: (gc.ensembleOn && e.started && !app.reduceMotion)
+                            ? 1.0 + 0.012 * gc.ensemble.gongBreath
+                            : 1.0,
+                        child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
                             CustomPaint(
                                 painter: TilesBoardPainter(
-                                    engine: e, flashLane: gc.flashLane, flashT: gc.flashT)),
+                                    engine: e,
+                                    flashLane: gc.flashLane,
+                                    flashT: gc.flashT,
+                                    colorblind: app.colorblind)),
                             // Rich pooled particle bursts / ripples / flash per tap
                             // (shares the board's coordinate space; taps pass through).
                             Positioned.fill(child: _GameFxLayer(gc: gc)),
+                            // Colour-temperature arc: warm gold grows with ensemble fullness.
+                            if (gc.ensembleOn)
+                              Positioned.fill(
+                                  child: EnsembleGlow(
+                                      gc: gc, reduceMotion: app.reduceMotion)),
                             Row(
                               children: List.generate(
                                 K.columns,
@@ -190,6 +209,7 @@ class TilesGameScreen extends StatelessWidget {
                               ),
                           ],
                         ),
+                      ),
                       ),
                     ),
                   ),
