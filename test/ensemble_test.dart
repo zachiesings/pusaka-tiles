@@ -75,7 +75,7 @@ void main() {
       ramp(d);
       expect(taps(d, 17).any((h) => h.voice == 'kendang'), false);
       d.onCombo(35); // level 4 — full stack
-      d.onTap(8); // wake on the next gong tap
+      taps(d, 16); // advance to the next gong tap so the wake applies
       ramp(d);
       expect(taps(d, 17).any((h) => h.voice == 'kendang'), true);
       expect(d.fullness, greaterThan(0.9));
