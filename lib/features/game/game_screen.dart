@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../game/motifs.dart';
@@ -406,25 +407,36 @@ class _GameOverOverlay extends StatelessWidget {
     required this.adStatus,
   });
 
-  /// Copy a shareable result string to the clipboard (zero-dependency "share").
-  void _copyResult(BuildContext context) {
+  String _resultText() {
     final pct = (fullness * 100).round();
     final flag = allPerfect
         ? ' · ALL PERFECT'
         : fullCombo
             ? ' · FULL COMBO'
             : '';
-    final txt = 'Pusaka Tiles — $songTitle\n'
+    return 'Pusaka Tiles — $songTitle\n'
         'Grade $grade · Akurasi ${(accuracy * 100).round()}% · '
         'Ensemble penuh $pct%$flag\n'
         'Ketuk ubin, bangunkan gamelanmu sendiri!';
-    Clipboard.setData(ClipboardData(text: txt));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Hasil disalin — tempel & bagikan!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  }
+
+  /// Open the native OS share sheet with the result. Falls back to copying to
+  /// the clipboard if sharing is unavailable, so the button always does something.
+  Future<void> _shareResult(BuildContext context) async {
+    final txt = _resultText();
+    try {
+      await Share.share(txt, subject: 'Pusaka Tiles');
+    } catch (_) {
+      Clipboard.setData(ClipboardData(text: txt));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hasil disalin — tempel & bagikan!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   String get _headline {
@@ -576,7 +588,7 @@ class _GameOverOverlay extends StatelessWidget {
                     letterSpacing: 0.4)),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: () => _copyResult(context),
+              onTap: () => _shareResult(context),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                 decoration: BoxDecoration(
