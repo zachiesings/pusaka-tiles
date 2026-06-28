@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 /// "The Ensemble Awakens" — the layering core of Pusaka Tiles.
 ///
 /// The player's taps carry the lead melody; this director grows a gamelan
@@ -14,6 +12,8 @@ import 'dart:math' as math;
 /// and colotomic punctuation are quantised to beat/gong boundaries the player is
 /// actually playing. No Flutter dependency — pure logic, unit-tested.
 library;
+
+import 'dart:math' as math;
 
 /// The four ensemble layers, lead first. `lead` is always sounding (the player).
 /// The other three wake/sleep with the combo.

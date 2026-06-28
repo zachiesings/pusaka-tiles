@@ -32,6 +32,27 @@ TPB = 480  # ticks per beat
 NOTE_MIDI = [55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72, 74, 76]
 PROG = {"piano": 0, "gamelan": 11, "angklung": 12, "suling": 75}
 
+# ── Slendro/pelog character for the gamelan voice (Wave 1, "Ensemble Awakens") ─
+# FluidR3_GM is 12-TET; real gamelan never is — its bronze is tuned by ear, with
+# uneven (pelog-leaning) steps and slightly STRETCHED octaves that "beat" against
+# each other (ombak). We nudge each scale degree of the GAMELAN voice by a few
+# cents via a pitch-bend before each rendered note. Deliberately conservative
+# (≤ ~30 cents) so it reads as shimmering bronze, never as "out of tune". This
+# voice also rings the awakening ensemble layers (bonang + colotomic), so the
+# whole gamelan sounds like gamelan instead of a piano. The lead melody on
+# piano/angklung/suling stays 12-TET — recognizable tunes are never detuned
+# (HARD CONSTRAINT: don't break what ships). Indexed by the diatonic note table:
+#   sol la ti | do re mi fa sol la ti | do' re' mi'  (do = index 3 = tonic C)
+PELOG_CENTS = [-11, 9, -27, 0, 8, -16, 20, -6, 14, -22, 5, 13, -11]
+TUNED_VOICES = {"gamelan"}  # only these folders get the pelog pitch-bend
+
+
+def pitchwheel_for_cents(c):
+    """A MIDI pitch-wheel value (-8192..8191) for [c] cents, given the GM default
+    wheel range of ±2 semitones (200 cents)."""
+    v = int(round(c / 200.0 * 8192))
+    return max(-8192, min(8191, v))
+
 # pitch-class per melody index (all songs centre on C / do=C)
 NOTE_PC = [m % 12 for m in NOTE_MIDI]
 # C-major diatonic chords: name -> (bass MIDI root, triad pitch-classes, pad MIDI triad)
@@ -148,6 +169,11 @@ def render_oneshots():
                 tr = MidiTrack(); mf.tracks.append(tr)
                 tempo_track(tr, 120)
                 tr.append(Message("program_change", program=prog, time=0))
+                # Pelog-leaning pitch-bend for the gamelan voice (see PELOG_CENTS).
+                if instr in TUNED_VOICES:
+                    tr.append(Message("pitchwheel",
+                                      pitch=pitchwheel_for_cents(PELOG_CENTS[i]),
+                                      time=0))
                 vel = 100 if instr in ("angklung", "gamelan") else 92
                 tr.append(Message("note_on", note=note, velocity=vel, time=0))
                 # SHORT note so rapid taps don't pile long tails into the 5-voice
@@ -180,6 +206,22 @@ def render_sfx():
     _simple_note(os.path.join(AUD, "tap.wav"), prog=12, note=84, dur=0.18, vel=80, room=0.18)
     # wrong: low detuned thunk (Synth Bass region)
     _simple_note(os.path.join(AUD, "wrong.wav"), prog=38, note=40, dur=0.3, vel=95, room=0.15)
+
+
+# ---------- awakening-ensemble percussion (the kendang drive layer) ----------
+def render_ensemble():
+    """Render the dedicated ensemble one-shots the EnsembleDirector calls by name.
+    Wave 1 needs only the kendang (the drive layer's drum); the pitched colotomic
+    voices (gong/kenong/kempul) ring on the pelog-tuned gamelan note set for now.
+    Until this exists the Dart side falls back to tap.wav, so this is a drop-in
+    upgrade with no code change."""
+    d = os.path.join(AUD, "ensemble")
+    os.makedirs(d, exist_ok=True)
+    # kendang: a soft, woody hand-drum pulse (Melodic Tom), short so the per-beat
+    # drive never muddies the mix.
+    _simple_note(os.path.join(d, "kendang.wav"),
+                 prog=117, note=50, dur=0.16, vel=88, room=0.10)
+    print("  ensemble: kendang.wav")
 
 
 def _simple_note(out, prog, note, dur, vel, room=0.2, peak=-3.0):
@@ -358,6 +400,7 @@ def main():
     render_oneshots()
     if not os.environ.get("AB_ONLY"):  # full render only outside A/B mode
         render_sfx()
+        render_ensemble()
         render_home_bgm()
         render_pad()
         render_backing(songs)
