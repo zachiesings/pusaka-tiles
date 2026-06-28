@@ -247,16 +247,12 @@ class TilesGameController extends ChangeNotifier {
     // Advance the awakening ensemble in the same beat space the engine scrolls,
     // and sound any colotomic punctuation that fell due this frame.
     if (_ensembleOn && engine.started && !engine.gameOver && !engine.completed) {
-      final hits = ensemble.tick(engine.scroll, dt.clamp(0.0, 0.05));
+      // Per-frame: only advance the wake/sleep crossfades + the visual gong
+      // phase. ALL ensemble *audio* is emitted on taps (see tap()), so it stays
+      // locked to the player's rhythm — and nothing spams the audio channel.
+      ensemble.tick(engine.scroll, dt.clamp(0.0, 0.05));
       if (ensemble.activeLayers > peakLayers) peakLayers = ensemble.activeLayers;
       if (ensemble.fullness > peakFullness) peakFullness = ensemble.fullness;
-      for (final h in hits) {
-        if (h.note >= 0) {
-          app.playEnsembleNote(ensemble.cfg.ensembleVoice, h.note, h.gain);
-        } else {
-          app.playColotomic(h.voice, h.gain, fallback: 'audio/tap.wav');
-        }
-      }
     }
     // Imbal: at each new gong cycle, maybe arm a call over the upcoming tiles;
     // arpeggiate the "call" so the player hears the figure before answering it.
@@ -349,13 +345,17 @@ class TilesGameController extends ChangeNotifier {
           feverJustStarted = true;
           feverEvent++; // one-shot signal for a UI burst
         }
-        // Grow the ensemble: a clean tap may cross a wake threshold (applied on
-        // the next gong) and rings the bonang shimmer over the lead.
+        // Grow the ensemble. Every gamelan voice (bonang + colotomic + kendang)
+        // sounds HERE, on the tap, derived from the lead note — so the gamelan
+        // plays the melody together with the player, in time and consonant.
         if (_ensembleOn) {
           ensemble.onCombo(combo);
-          final comp = ensemble.onTap(note);
-          if (comp != null) {
-            app.playEnsembleNote(comp.voice, comp.note, comp.gain);
+          for (final h in ensemble.onTap(note)) {
+            if (h.note >= 0) {
+              app.playEnsembleNote(ensemble.cfg.ensembleVoice, h.note, h.gain);
+            } else {
+              app.playColotomic(h.voice, h.gain, fallback: 'audio/tap.wav');
+            }
           }
         }
       } else {

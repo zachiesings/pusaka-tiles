@@ -25,29 +25,28 @@ void main() {
     });
 
     test('Gong Ganda adds a mid-cycle gong accent in the ensemble', () {
-      List<ColotomicHit> advance(EnsembleDirector d, double from, double to) {
-        final hits = <ColotomicHit>[];
-        var s = from;
-        while (s < to - 1e-9) {
-          s += 0.1;
-          hits.addAll(d.tick(s, 0.1));
+      int gongsPerCycle(bool ganda) {
+        final d = EnsembleDirector(
+            config: EnsembleConfig(
+                gonganTaps: 16, crossfadeBeats: 1, gongGanda: ganda));
+        d.onCombo(20); // wake colotomic
+        d.onTap(8); // apply the wake on the gong tap
+        var s = 0.0;
+        for (var i = 0; i < 20; i++) {
+          s += 0.5;
+          d.tick(s, 0.5); // ramp the gain up
         }
-        return hits;
+        var gongs = 0;
+        for (var i = 0; i < 16; i++) {
+          for (final h in d.onTap(8)) {
+            if (h.voice == 'gong') gongs++;
+          }
+        }
+        return gongs;
       }
 
-      final plain = EnsembleDirector(
-          config: const EnsembleConfig(gonganBeats: 16, crossfadeBeats: 1));
-      final ganda = EnsembleDirector(
-          config: const EnsembleConfig(
-              gonganBeats: 16, crossfadeBeats: 1, gongGanda: true));
-      for (final d in [plain, ganda]) {
-        d.onCombo(20); // wake colotomic
-        advance(d, 0, 18);
-      }
-      // Over one cycle, count gong hits. Gong Ganda adds one at the mid-cycle.
-      final plainGongs = advance(plain, 31, 47).where((h) => h.voice == 'gong').length;
-      final gandaGongs = advance(ganda, 31, 47).where((h) => h.voice == 'gong').length;
-      expect(gandaGongs, greaterThan(plainGongs));
+      // Plain = one gong (cycle downbeat); Gong Ganda = a second at mid-cycle.
+      expect(gongsPerCycle(true), greaterThan(gongsPerCycle(false)));
     });
   });
 }
