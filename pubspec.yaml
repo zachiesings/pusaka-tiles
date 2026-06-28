@@ -1,7 +1,7 @@
 name: pusaka_tiles
 description: Pusaka Tiles — ketuk ubin, mainkan melodi lagu daerah Nusantara & klasik dunia.
 publish_to: 'none'
-version: 1.5.0+6
+version: 1.6.0+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -39,6 +39,7 @@ flutter:
     - assets/audio/gamelan/
     - assets/audio/suling/
     - assets/audio/backing/
+    - assets/audio/ensemble/
   fonts:
     # Outfit — modern geometric display face (OFL) for score/combo/headers.
     # Variable wght axis; Flutter maps fontWeight onto it.
