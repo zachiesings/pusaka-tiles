@@ -36,16 +36,6 @@ class ColotomicHit {
   const ColotomicHit(this.voice, this.note, this.gain);
 }
 
-/// A note the ensemble plays *with* a tap (the bonang shimmer). Consonant by
-/// construction: it is the lead note transposed by whole octaves, so it never
-/// clashes with the melody (HARD CONSTRAINT — lead stays in tune).
-class CompanionNote {
-  final String voice; // instrument folder, e.g. 'gamelan'
-  final int note; // melodic index 0..12
-  final double gain; // 0..1
-  const CompanionNote(this.voice, this.note, this.gain);
-}
-
 /// Tunable defaults (see spec §6). All overridable via the constructor so songs
 /// and modes can bend them without touching logic.
 class EnsembleConfig {
@@ -53,7 +43,8 @@ class EnsembleConfig {
   final int comboL3; // wake colotomic
   final int comboL4; // wake kendang (full stack)
   final int restoreTaps; // clean taps after a break that re-wake the dropped layer
-  final double gonganBeats; // length of one gong cycle, in beats
+  final double gonganBeats; // gong cycle in scroll-beats (visual breathing only)
+  final int gonganTaps; // gong cycle in PLAYER TAPS — the audible rhythm spine
   final double crossfadeBeats; // wake/sleep ramp length, in beats
   final String ensembleVoice; // asset folder for the pitched ensemble layers
   final bool gongGanda; // Gong Ganda modifier: extra colotomic accents
@@ -64,17 +55,20 @@ class EnsembleConfig {
     this.comboL4 = 35,
     this.restoreTaps = 6,
     this.gonganBeats = 16,
+    this.gonganTaps = 16,
     this.crossfadeBeats = 1.0,
     this.ensembleVoice = 'gamelan',
     this.gongGanda = false,
   });
 
-  EnsembleConfig copyWith({double? gonganBeats, bool? gongGanda}) => EnsembleConfig(
+  EnsembleConfig copyWith({double? gonganBeats, int? gonganTaps, bool? gongGanda}) =>
+      EnsembleConfig(
         comboL2: comboL2,
         comboL3: comboL3,
         comboL4: comboL4,
         restoreTaps: restoreTaps,
         gonganBeats: gonganBeats ?? this.gonganBeats,
+        gonganTaps: gonganTaps ?? this.gonganTaps,
         crossfadeBeats: crossfadeBeats,
         ensembleVoice: ensembleVoice,
         gongGanda: gongGanda ?? this.gongGanda,
@@ -103,10 +97,9 @@ class EnsembleDirector {
   /// Per-layer "should be sounding" goal the gains ramp toward.
   final List<double> _goal = <double>[1, 0, 0, 0];
 
-  double _scroll = 0; // last seen scroll position (beats)
-  double _lastGong = 0; // scroll value of the most recent gong boundary
-  int _lastBeat = -1; // last integer beat index fired (colotomic dedupe)
-  bool _pendingWake = false; // a wake is waiting for the next gong
+  double _scroll = 0; // last scroll position — drives the VISUAL gong phase only
+  int _tap = 0; // player-tap counter — the ensemble's rhythmic spine
+  bool _pendingWake = false; // a wake is waiting for the next gong (in taps)
   int _cleanSinceBreak = 0; // clean taps accumulated after a combo break
   bool _restoreArmed = false; // a dropped layer is eligible for the +taps re-wake
 
@@ -204,47 +197,78 @@ class EnsembleDirector {
     }
   }
 
-  /// A clean tap (Good or better). Returns the bonang companion note to sound
-  /// alongside the lead, or null when that layer is asleep. Also advances the
-  /// gentle [cfg.restoreTaps] re-wake after a break.
-  CompanionNote? onTap(int leadNote) {
+  /// Shift a melodic index by [d] diatonic steps, staying in the note table
+  /// (falls back to the original note if it would go out of range) — so every
+  /// ensemble voice is an octave-copy of the lead and can NEVER clash.
+  static int _shift(int n, int d) {
+    final v = n + d;
+    return (v >= 0 && v <= 12) ? v : n;
+  }
+
+  /// Sound the ensemble *with* a clean tap on [leadNote]. EVERYTHING the gamelan
+  /// plays — bonang shimmer, colotomic gong/kenong/kempul, kendang drive — is
+  /// emitted here, keyed to the player's TAP (never an independent clock), and
+  /// derived from the lead note. So the gamelan plays the melody *together* with
+  /// the player, perfectly in time and always consonant. Returns the voices to
+  /// play now (already gain-scaled; empty while the ensemble sleeps).
+  List<ColotomicHit> onTap(int leadNote) {
+    final out = <ColotomicHit>[];
+    // Gentle +taps re-wake after a break.
     if (_restoreArmed) {
       _cleanSinceBreak++;
       if (_cleanSinceBreak >= cfg.restoreTaps) {
         _restoreArmed = false;
         _target = math.min(4, _target + 1);
-        _pendingWake = true; // re-wake also lands on the next gong
+        _pendingWake = true;
       }
     }
-    final g = _gain[EnsembleLayer.bonang.index];
-    if (g <= 0.02) return null;
-    // Bonang shimmer: the lead note an octave up (7 diatonic steps in the note
-    // table). Octaves are always consonant, so the melody can never clash.
-    final up = leadNote + 7;
-    final note = up <= 12 ? up : leadNote;
-    return CompanionNote(cfg.ensembleVoice, note, g * 0.5);
+    // Tap-quantised gong cycle: position 0 is the gong (cycle start). A pending
+    // wake lands here so new layers enter "on the gong" — but in TAP time.
+    final gt = cfg.gonganTaps < 2 ? 2 : cfg.gonganTaps;
+    final pos = _tap % gt;
+    if (pos == 0 && _pendingWake) {
+      _pendingWake = false;
+      for (var i = 1; i <= _target - 1; i++) {
+        _goal[i] = 1;
+      }
+    }
+    _tap++;
+
+    final bonangG = _gain[EnsembleLayer.bonang.index];
+    final coloG = _gain[EnsembleLayer.colotomic.index];
+    final driveG = _gain[EnsembleLayer.kendang.index];
+
+    // Bonang (L2): the lead an octave up — a shimmer riding your note.
+    if (bonangG > 0.02) {
+      out.add(ColotomicHit(cfg.ensembleVoice, _shift(leadNote, 7), bonangG * 0.5));
+    }
+    // Colotomic (L3): structural punctuation that DOUBLES the lead (mostly an
+    // octave down) so it reinforces the melody instead of droning against it.
+    if (coloG > 0.02) {
+      final quarter = (gt / 4).round();
+      final half = (gt / 2).round();
+      if (pos == 0) {
+        out.add(ColotomicHit('gong', _shift(leadNote, -7), coloG * (driveG > 0.5 ? 1.0 : 0.85)));
+      } else if (quarter > 0 && pos % quarter == 0) {
+        out.add(ColotomicHit('kenong', _shift(leadNote, -7), coloG * 0.7));
+      } else if (pos.isEven) {
+        out.add(ColotomicHit('kempul', leadNote, coloG * 0.5));
+      }
+      // Gong Ganda modifier: an extra gong accent on the mid-cycle tap.
+      if (cfg.gongGanda && half > 0 && pos == half) {
+        out.add(ColotomicHit('gong', _shift(leadNote, -7), coloG * 0.9));
+      }
+    }
+    // Kendang (L4): a soft drum on every other tap — drive, locked to your beat.
+    if (driveG > 0.02 && pos.isEven) {
+      out.add(ColotomicHit('kendang', -1, driveG * 0.5));
+    }
+    return out;
   }
 
-  /// Advance crossfades and surface any colotomic hits due since the last tick.
-  /// [scroll] is the engine's beat position; [dt] is the frame delta in seconds.
-  /// Returns the hits to play *now* (already gain-scaled; empty when silent).
-  List<ColotomicHit> tick(double scroll, double dt) {
-    final hits = <ColotomicHit>[];
-    // 1) Apply a pending wake when a gong boundary is crossed.
-    final gongIndex = (scroll / cfg.gonganBeats).floor();
-    final crossedGong = gongIndex * cfg.gonganBeats;
-    if (crossedGong > _lastGong + 1e-6) {
-      _lastGong = crossedGong;
-      if (_pendingWake) {
-        _pendingWake = false;
-        for (var i = 1; i <= _target - 1; i++) {
-          _goal[i] = 1;
-        }
-      }
-    }
-
-    // 2) Ramp gains toward their goals (a linear crossfade over crossfadeBeats,
-    //    converted to a per-second rate via the live tempo estimate).
+  /// Advance the wake/sleep crossfades. [scroll] feeds the VISUAL gong phase only
+  /// (the audible rhythm is tap-driven in [onTap]); [dt] is the frame delta.
+  void tick(double scroll, double dt) {
     final beatsPerSec = _scroll < scroll && dt > 0 ? (scroll - _scroll) / dt : 0.0;
     _scroll = scroll;
     final rate = cfg.crossfadeBeats > 0 && beatsPerSec > 0
@@ -257,47 +281,6 @@ class EnsembleDirector {
       } else if (_gain[i] > goal) {
         _gain[i] = math.max(goal, _gain[i] - rate);
       }
-    }
-
-    // 3) Colotomic punctuation on integer beats within the gongan. Fires once
-    //    per beat crossing; each voice only sounds when its layer is awake.
-    final beat = scroll.floor();
-    if (beat != _lastBeat && beat >= 0) {
-      _lastBeat = beat;
-      final inCycle = beat % cfg.gonganBeats.round();
-      _appendColotomic(hits, inCycle);
-    }
-    return hits;
-  }
-
-  void _appendColotomic(List<ColotomicHit> hits, int beatInCycle) {
-    final gongG = _gain[EnsembleLayer.colotomic.index];
-    final driveG = _gain[EnsembleLayer.kendang.index];
-    // Gong ageng on the cycle downbeat — the spine. Sounds once the colotomic
-    // layer (or the full stack) is awake; louder under the kendang layer.
-    if (beatInCycle == 0 && gongG > 0.02) {
-      hits.add(ColotomicHit('gong', 3, gongG * (driveG > 0.5 ? 1.0 : 0.8)));
-    }
-    // Gong Ganda: an extra gong accent on the mid-cycle downbeat — more driving.
-    if (cfg.gongGanda && gongG > 0.02) {
-      final half = (cfg.gonganBeats / 2).round();
-      if (half > 0 && beatInCycle == half) {
-        hits.add(ColotomicHit('gong', 7, gongG * 0.85)); // fifth — a consonant accent
-      }
-    }
-    if (gongG > 0.02) {
-      // Kenong marks the quarter points (root); kempul the offbeats (fifth).
-      final half = (cfg.gonganBeats / 2).round();
-      final quarter = (cfg.gonganBeats / 4).round();
-      if (beatInCycle != 0 && quarter > 0 && beatInCycle % quarter == 0) {
-        hits.add(ColotomicHit('kenong', 7, gongG * 0.7)); // sol — consonant fifth
-      } else if (half > 0 && beatInCycle % 2 == 0) {
-        hits.add(ColotomicHit('kempul', 3, gongG * 0.5)); // do — consonant root
-      }
-    }
-    // Kendang drive: a soft pulse on every beat once the full stack is awake.
-    if (driveG > 0.02) {
-      hits.add(ColotomicHit('kendang', -1, driveG * 0.45));
     }
   }
 
@@ -315,8 +298,7 @@ class EnsembleDirector {
       ..[2] = 0
       ..[3] = 0;
     _scroll = 0;
-    _lastGong = 0;
-    _lastBeat = -1;
+    _tap = 0;
     _pendingWake = false;
     _cleanSinceBreak = 0;
     _restoreArmed = false;

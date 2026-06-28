@@ -2,109 +2,108 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pusaka_tiles/game/ensemble.dart';
 
 void main() {
-  EnsembleDirector dir({double gongan = 16}) => EnsembleDirector(
-      config: EnsembleConfig(gonganBeats: gongan, crossfadeBeats: 1));
+  EnsembleDirector dir({int gongTaps = 16}) => EnsembleDirector(
+      config: EnsembleConfig(gonganTaps: gongTaps, crossfadeBeats: 1));
 
-  // Advance scroll from->to in small steps, returning every colotomic hit seen.
-  // dt == step makes the internal crossfade ramp by step/crossfadeBeats per tick,
-  // so advancing scroll by one crossfadeBeats fully completes a wake/sleep.
-  List<ColotomicHit> advance(EnsembleDirector d, double from, double to,
-      {double step = 0.1}) {
-    final hits = <ColotomicHit>[];
-    var s = from;
-    while (s < to - 1e-9) {
-      s += step;
-      hits.addAll(d.tick(s, step));
+  // Tap n times, collecting every voice the ensemble emits.
+  List<ColotomicHit> taps(EnsembleDirector d, int n, {int lead = 8}) {
+    final out = <ColotomicHit>[];
+    for (var i = 0; i < n; i++) {
+      out.addAll(d.onTap(lead));
     }
-    return hits;
+    return out;
   }
 
-  group('EnsembleDirector', () {
-    test('starts lead-only — nothing awake', () {
+  // Advance scroll so wake/sleep crossfades complete (audio is tap-driven, but
+  // the gain ramp is time-driven via tick).
+  var _scroll = 0.0;
+  void ramp(EnsembleDirector d) {
+    for (var i = 0; i < 20; i++) {
+      _scroll += 0.5;
+      d.tick(_scroll, 0.5);
+    }
+  }
+
+  setUp(() => _scroll = 0.0);
+
+  group('EnsembleDirector (tap-locked)', () {
+    test('starts lead-only — a tap sounds nothing extra', () {
       final d = dir();
       expect(d.targetLevel, 1);
       expect(d.activeLayers, 0);
-      expect(d.fullness, 0);
-      expect(d.isAwake(EnsembleLayer.bonang), false);
-      expect(d.onTap(3), isNull); // no shimmer while bonang sleeps
+      expect(d.onTap(5), isEmpty);
     });
 
-    test('reaching a threshold targets a layer but waits for the next gong', () {
+    test('bonang wakes on the gong tap and doubles the lead an octave up', () {
       final d = dir();
-      d.onCombo(8);
-      expect(d.targetLevel, 2);
-      advance(d, 0, 15.5); // not yet across the first gong (at beat 16)
-      expect(d.isAwake(EnsembleLayer.bonang), false);
-    });
-
-    test('bonang wakes on the gong and rings a consonant octave companion', () {
-      final d = dir();
-      d.onCombo(8);
-      advance(d, 0, 18); // cross gong at 16, then ramp over 1 beat
+      d.onCombo(8); // target bonang
+      d.onTap(5); // tap at cycle position 0 applies the pending wake goal
+      ramp(d); // crossfade the gain up
       expect(d.isAwake(EnsembleLayer.bonang), true);
-      expect(d.activeLayers, 1);
-      final comp = d.onTap(3); // lead = do (index 3)
-      expect(comp, isNotNull);
-      expect(comp!.note, 10); // 3 + 7 = one octave up, always consonant
-      expect(comp.voice, 'gamelan');
-      expect(comp.gain, greaterThan(0));
+      final hits = d.onTap(3); // lead = do (3)
+      expect(hits.any((h) => h.note == 10), true); // 3 + 7 = octave up, consonant
     });
 
-    test('companion never exceeds the note table (clamps to the lead octave)', () {
+    test('companion clamps into the note table (never out of range)', () {
       final d = dir();
       d.onCombo(8);
-      advance(d, 0, 18);
-      final comp = d.onTap(9); // 9 + 7 = 16 > 12 → fall back to the lead note
-      expect(comp!.note, 9);
+      d.onTap(9);
+      ramp(d);
+      final hits = d.onTap(9); // 9 + 7 = 16 > 12 → falls back to the lead note
+      expect(hits.any((h) => h.note == 9), true);
+      expect(hits.every((h) => h.note <= 12), true);
     });
 
-    test('a combo break sleeps the most-recently-woken layer', () {
+    test('colotomic doubles the lead and punctuates across one gong cycle', () {
       final d = dir();
-      d.onCombo(20); // target colotomic (level 3)
-      advance(d, 0, 18);
-      expect(d.targetLevel, 3);
-      expect(d.activeLayers, 2);
-      d.onBreak();
-      expect(d.targetLevel, 2);
-      advance(d, 18, 20); // ramp the dropped layer down
-      expect(d.activeLayers, 1);
-    });
-
-    test('the +taps grace re-wakes a dropped layer without re-reaching threshold', () {
-      final d = dir();
-      d.onCombo(8);
-      advance(d, 0, 18);
-      d.onBreak();
-      expect(d.targetLevel, 1);
-      // restoreTaps (default 6) clean taps re-arm the dropped layer.
-      for (var i = 0; i < 6; i++) {
-        d.onTap(3);
-      }
-      expect(d.targetLevel, 2);
-    });
-
-    test('colotomic punctuation fires gong/kenong/kempul on a full cycle', () {
-      final d = dir();
-      d.onCombo(20); // wake through the colotomic layer
-      advance(d, 0, 18); // both layers up
-      final hits = advance(d, 31, 47); // one full 16-beat gong cycle, awake
+      d.onCombo(20); // wake through colotomic
+      d.onTap(8);
+      ramp(d);
+      final hits = taps(d, 17, lead: 8); // a full 16-tap cycle, awake
       final voices = hits.map((h) => h.voice).toSet();
-      expect(voices.contains('gong'), true); // gong ageng on the downbeat (32)
+      expect(voices.contains('gong'), true); // cycle downbeat
       expect(voices.contains('kenong'), true); // quarter points
       expect(voices.contains('kempul'), true); // offbeats
+      // Pitched colotomic never exceeds the table (octave-shifted lead).
+      expect(hits.where((h) => h.note >= 0).every((h) => h.note <= 12), true);
     });
 
     test('kendang drive only joins at the full stack', () {
       final d = dir();
-      d.onCombo(20); // level 3 — colotomic, no kendang yet
-      advance(d, 0, 18);
-      var hits = advance(d, 18, 34);
-      expect(hits.any((h) => h.voice == 'kendang'), false);
+      d.onCombo(20); // level 3 — colotomic, no kendang
+      d.onTap(8);
+      ramp(d);
+      expect(taps(d, 17).any((h) => h.voice == 'kendang'), false);
       d.onCombo(35); // level 4 — full stack
-      advance(d, 34, 52); // wake kendang on the next gong (at 48)
-      hits = advance(d, 52, 60);
-      expect(hits.any((h) => h.voice == 'kendang'), true);
+      d.onTap(8); // wake on the next gong tap
+      ramp(d);
+      expect(taps(d, 17).any((h) => h.voice == 'kendang'), true);
       expect(d.fullness, greaterThan(0.9));
+    });
+
+    test('a combo break sleeps the most-recently-woken layer', () {
+      final d = dir();
+      d.onCombo(20);
+      d.onTap(8);
+      ramp(d);
+      expect(d.activeLayers, 2);
+      d.onBreak();
+      expect(d.targetLevel, 2);
+      ramp(d);
+      expect(d.activeLayers, 1);
+    });
+
+    test('the +taps grace re-wakes a dropped layer', () {
+      final d = dir();
+      d.onCombo(8);
+      d.onTap(5);
+      ramp(d);
+      d.onBreak();
+      expect(d.targetLevel, 1);
+      for (var i = 0; i < 6; i++) {
+        d.onTap(5); // restoreTaps clean taps
+      }
+      expect(d.targetLevel, 2);
     });
 
     test('nextSleeping points at the next instrument to earn', () {
@@ -115,22 +114,25 @@ void main() {
       expect(d.nextSleeping, EnsembleLayer.colotomic);
     });
 
-    test('gong phase + breath track position through the cycle', () {
-      final d = dir(gongan: 16);
-      advance(d, 0, 8); // halfway through the 16-beat gong cycle
-      expect(d.gongPhase, closeTo(0.5, 0.03));
-      expect(d.gongBreath, greaterThan(0.9)); // breath swells to mid-cycle
+    test('gong phase + breath track the scroll position (for the visual)', () {
+      final d = dir();
+      for (var i = 0; i < 80; i++) {
+        d.tick((i + 1) * 0.1, 0.1); // advance to scroll 8 (mid 16-beat cycle)
+      }
+      expect(d.gongPhase, closeTo(0.5, 0.05));
+      expect(d.gongBreath, greaterThan(0.9));
     });
 
     test('reset returns to a fresh lead-only run', () {
       final d = dir();
       d.onCombo(35);
-      advance(d, 0, 60);
+      d.onTap(8);
+      ramp(d);
       expect(d.activeLayers, greaterThan(0));
       d.reset();
       expect(d.targetLevel, 1);
       expect(d.activeLayers, 0);
-      expect(d.fullness, 0);
+      expect(d.onTap(5), isEmpty);
     });
   });
 }

@@ -96,7 +96,15 @@ class TilesGameScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        _ComboPill(combo: gc.combo, best: best, fever: gc.feverActive),
+                        // Fixed-height slot so the combo pill appearing/leaving
+                        // never shoves the dashboard up/down (no layout jump).
+                        SizedBox(
+                          height: 34,
+                          child: Center(
+                            child: _ComboPill(
+                                combo: gc.combo, best: best, fever: gc.feverActive),
+                          ),
+                        ),
                       ],
                     ),
                   ),
