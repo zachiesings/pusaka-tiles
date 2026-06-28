@@ -156,7 +156,14 @@ def write_track(mf, events, ch_progs):
 # ---------- note one-shots ----------
 def render_oneshots():
     # AB_ONLY → render just piano + suling (the A/B voices); leave the rest as-is.
-    voices = {"piano": 0, "suling": 75} if os.environ.get("AB_ONLY") else PROG
+    # GAMELAN_ONLY → render just the gamelan voice (its pelog retune) — a tiny,
+    # low-blast-radius diff that leaves every other instrument's bytes untouched.
+    if os.environ.get("GAMELAN_ONLY"):
+        voices = {"gamelan": PROG["gamelan"]}
+    elif os.environ.get("AB_ONLY"):
+        voices = {"piano": 0, "suling": 75}
+    else:
+        voices = PROG
     for instr, prog in voices.items():
         out_dir = os.path.join(AUD, instr)
         os.makedirs(out_dir, exist_ok=True)
@@ -398,7 +405,9 @@ def main():
             print(f"OLD peak {name} note_03: {peak_db(p):.2f} dBFS (WAV)")
 
     render_oneshots()
-    if not os.environ.get("AB_ONLY"):  # full render only outside A/B mode
+    if os.environ.get("GAMELAN_ONLY"):
+        render_ensemble()  # gamelan pelog retune + kendang only — minimal diff
+    elif not os.environ.get("AB_ONLY"):  # full render only outside A/B mode
         render_sfx()
         render_ensemble()
         render_home_bgm()

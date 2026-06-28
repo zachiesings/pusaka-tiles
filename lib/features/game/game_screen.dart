@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../game/stage.dart';
@@ -8,6 +9,7 @@ import '../../services/ads/ads_service.dart';
 import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
+import '../../widgets/batik_motif.dart';
 import '../../widgets/ensemble_hud.dart';
 import '../../widgets/mascot.dart';
 import '../../widgets/tiles_mascot.dart';
@@ -176,6 +178,11 @@ class TilesGameScreen extends StatelessWidget {
                                     imbalGlow: gc.imbalActive
                                         ? (gc.imbalTotal - gc.imbalAnswered)
                                         : 0)),
+                            // Live batik germination — blooms with combo + ensemble.
+                            if (gc.ensembleOn)
+                              Positioned.fill(
+                                  child: BatikBloomOverlay(
+                                      gc: gc, reduceMotion: app.reduceMotion)),
                             // Rich pooled particle bursts / ripples / flash per tap
                             // (shares the board's coordinate space; taps pass through).
                             Positioned.fill(child: _GameFxLayer(gc: gc)),
@@ -268,6 +275,8 @@ class TilesGameScreen extends StatelessWidget {
                   accuracy: gc.accuracy,
                   fullCombo: gc.fullCombo,
                   allPerfect: gc.allPerfect,
+                  fullness: gc.peakFullness,
+                  songTitle: gc.song.title,
                   reward: gc.reward,
                   isNewBest: gc.isNewBest,
                   won: gc.won,
@@ -360,6 +369,8 @@ class _GameOverOverlay extends StatelessWidget {
   final String grade;
   final double accuracy; // 0..1 weighted
   final bool fullCombo, allPerfect;
+  final double fullness; // 0..1 fullest the ensemble got this run
+  final String songTitle;
   final RunReward reward;
   final bool isNewBest;
   final bool won;
@@ -378,6 +389,8 @@ class _GameOverOverlay extends StatelessWidget {
     required this.accuracy,
     required this.fullCombo,
     required this.allPerfect,
+    required this.fullness,
+    required this.songTitle,
     required this.reward,
     required this.isNewBest,
     required this.won,
@@ -390,6 +403,27 @@ class _GameOverOverlay extends StatelessWidget {
     required this.adReady,
     required this.adStatus,
   });
+
+  /// Copy a shareable result string to the clipboard (zero-dependency "share").
+  void _copyResult(BuildContext context) {
+    final pct = (fullness * 100).round();
+    final flag = allPerfect
+        ? ' · ALL PERFECT'
+        : fullCombo
+            ? ' · FULL COMBO'
+            : '';
+    final txt = 'Pusaka Tiles — $songTitle\n'
+        'Grade $grade · Akurasi ${(accuracy * 100).round()}% · '
+        'Ensemble penuh $pct%$flag\n'
+        'Ketuk ubin, bangunkan gamelanmu sendiri!';
+    Clipboard.setData(ClipboardData(text: txt));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Hasil disalin — tempel & bagikan!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   String get _headline {
     if (isStage) return stageWon ? 'Pusaka Diraih! 🎉' : 'Babak Belum Tuntas';
@@ -524,6 +558,43 @@ class _GameOverOverlay extends StatelessWidget {
                   ),
                 ),
             ],
+            // ---- The ensemble you grew — the shareable heart of the card ----
+            const SizedBox(height: 14),
+            BatikMotifView(
+              bloom: fullness <= 0 ? 0.12 : fullness,
+              color: fullness >= 0.99 ? Palette.goldLt : Palette.gold,
+              size: 76,
+            ),
+            const SizedBox(height: 4),
+            Text('Ensemble penuh ${(fullness * 100).round()}%',
+                style: TextStyle(
+                    color: Palette.cream.withOpacity(0.85),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _copyResult(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Palette.gold.withOpacity(0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.ios_share_rounded, size: 15, color: Palette.goldLt),
+                    SizedBox(width: 6),
+                    Text('Bagikan hasil',
+                        style: TextStyle(
+                            color: Palette.goldLt,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
+              ),
+            ),
             if (reward.xpGained > 0) ...[
               const SizedBox(height: 8),
               Text(
