@@ -65,6 +65,8 @@ class K {
   static const String kColorblind   = 'pt_colorblind';    // bool, shape/position lane cues
   static const String kEnsemble     = 'pt_ensemble';      // bool, "Ensemble Awakens" layering
   static const String kImbal        = 'pt_imbal';         // bool, call-and-response moments
+  static const String kMotifs       = 'pt_motifs';        // CSV of unlocked motif (song) ids
+  static const String kMotifEquip   = 'pt_motif_equipped'; // equipped motif's song id ('' = none)
   static const String kScrollSpeed   = 'pt_scroll_speed';    // double, tempo multiplier
   static const String kAudioOffsetMs = 'pt_audio_offset_ms'; // double, ms
   static const String kTouchOffsetMs = 'pt_touch_offset_ms'; // double, ms

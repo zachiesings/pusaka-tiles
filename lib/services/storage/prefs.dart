@@ -63,6 +63,13 @@ class Prefs {
   bool get imbal => _p.getBool(K.kImbal) ?? true;
   Future<void> setImbal(bool v) => _p.setBool(K.kImbal, v);
 
+  // Collectible Pusaka motifs: unlocked song-ids + the equipped one.
+  List<String> get unlockedMotifs => _p.getStringList(K.kMotifs) ?? const [];
+  Future<void> setUnlockedMotifs(List<String> v) => _p.setStringList(K.kMotifs, v);
+
+  String get equippedMotif => _p.getString(K.kMotifEquip) ?? '';
+  Future<void> setEquippedMotif(String v) => _p.setString(K.kMotifEquip, v);
+
   bool get firstRun => _p.getBool(K.kFirstRun) ?? true;
   Future<void> setFirstRunDone() => _p.setBool(K.kFirstRun, false);
 

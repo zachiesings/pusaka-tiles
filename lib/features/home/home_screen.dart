@@ -9,6 +9,7 @@ import '../../game/stage.dart';
 import '../../state/app_state.dart';
 import '../../state/game_controller.dart';
 import '../../widgets/batik.dart';
+import '../../widgets/batik_motif.dart';
 import '../../game/tile_themes.dart';
 import '../shop/shop_screen.dart';
 import '../songs/song_select_screen.dart';
@@ -241,6 +242,23 @@ class _BerandaTabState extends State<_BerandaTab> {
         children: [
           const Positioned(top: 0, left: 0, right: 0, child: StageCurtain()),
           const Positioned.fill(child: SparkleField(count: 20)),
+          // Equipped Pusaka motif — a faint background "theme" watermark.
+          if (app.activeMotif != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.06,
+                  child: CustomPaint(
+                    painter: BatikMotifPainter(
+                      bloom: 1,
+                      color: app.activeMotif!.color,
+                      petals: app.activeMotif!.petals,
+                      rings: app.activeMotif!.rings,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           SafeArea(
             child: Column(
               children: [
