@@ -1,7 +1,7 @@
 name: pusaka_tiles
 description: Pusaka Tiles — ketuk ubin, mainkan melodi lagu daerah Nusantara & klasik dunia.
 publish_to: 'none'
-version: 1.6.0+6
+version: 1.7.0+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -13,6 +13,7 @@ dependencies:
   shared_preferences: ^2.2.2
   audioplayers: ^6.1.0       # original synthesized note tones (proven pipeline)
   google_mobile_ads: '>=5.3.0 <7.0.0'
+  share_plus: ^10.1.4        # native OS share sheet for the result card
 
 dev_dependencies:
   flutter_test:
