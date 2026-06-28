@@ -11,6 +11,10 @@ on:
         description: "Render only piano+suling one-shots (A/B test); leave the rest"
         required: false
         default: ""
+      gamelan_only:
+        description: "Render only the gamelan voice (pelog retune) + kendang; tiny diff"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -31,6 +35,7 @@ jobs:
       - name: Render audio
         env:
           AB_ONLY: ${{ github.event.inputs.ab_only }}
+          GAMELAN_ONLY: ${{ github.event.inputs.gamelan_only }}
         run: python3 tool/render_audio.py
 
       - name: Commit rendered audio
