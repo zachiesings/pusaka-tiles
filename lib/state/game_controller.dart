@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/constants.dart';
 import '../game/chart.dart';
 import '../game/engine/tiles_engine.dart';
+import '../game/ensemble.dart';
 import '../game/game_mode.dart';
 import '../game/models/song.dart';
 import '../game/stage.dart';
@@ -22,6 +23,12 @@ class TilesGameController extends ChangeNotifier {
 
   late TilesEngine engine;
   late Chart chart;
+  /// The awakening-ensemble director (the core hook). Drives layered companion
+  /// voices + colotomic punctuation, and exposes [EnsembleDirector.activeLayers]
+  /// / [EnsembleDirector.fullness] for the colour arc, icons, and result card.
+  final EnsembleDirector ensemble = EnsembleDirector();
+  bool _ensembleOn = true; // mirrors the app setting at run start
+  bool get ensembleOn => _ensembleOn;
   PlayMode _effPlay = PlayMode.endless; // resolved play mode (campaign-derived)
   RunReward reward = const RunReward(); // progression rewards (valid after _finish)
   Ticker? _ticker;
@@ -130,6 +137,12 @@ class TilesGameController extends ChangeNotifier {
     stageFirstClear = false;
     reward = const RunReward();
     _scored = false;
+    // Wake the ensemble fresh for this run; honour the player's setting and the
+    // song's own gong-cycle length (data-driven, defaults to 16 beats).
+    _ensembleOn = app.ensemble;
+    ensemble.configure(
+        const EnsembleConfig().copyWith(gonganBeats: song.gonganBeats));
+    ensemble.reset();
     _ticker?.dispose();
     _ticker = Ticker(_onTick)..start();
     // Swap home gendhing → this song's humanized backing bed (under gameplay).
@@ -165,6 +178,18 @@ class TilesGameController extends ChangeNotifier {
     final wasOver = engine.gameOver;
     final wasDone = engine.completed;
     engine.tick(dt.clamp(0.0, 0.05)); // clamp to avoid huge jumps after stalls
+    // Advance the awakening ensemble in the same beat space the engine scrolls,
+    // and sound any colotomic punctuation that fell due this frame.
+    if (_ensembleOn && engine.started && !engine.gameOver && !engine.completed) {
+      final hits = ensemble.tick(engine.scroll, dt.clamp(0.0, 0.05));
+      for (final h in hits) {
+        if (h.note >= 0) {
+          app.playEnsembleNote(ensemble.cfg.ensembleVoice, h.note, h.gain);
+        } else {
+          app.playColotomic(h.voice, h.gain, fallback: 'audio/tap.wav');
+        }
+      }
+    }
     if (engine.gameOver && !wasOver) {
       app.playWrong();
       _finish();
@@ -221,8 +246,19 @@ class TilesGameController extends ChangeNotifier {
           feverJustStarted = true;
           feverEvent++; // one-shot signal for a UI burst
         }
+        // Grow the ensemble: a clean tap may cross a wake threshold (applied on
+        // the next gong) and rings the bonang shimmer over the lead.
+        if (_ensembleOn) {
+          ensemble.onCombo(combo);
+          final comp = ensemble.onTap(note);
+          if (comp != null) {
+            app.playEnsembleNote(comp.voice, comp.note, comp.gain);
+          }
+        }
       } else {
         combo = 0; // a Bad-timed hit breaks the combo
+        // A break puts the most-recently-woken instrument back to sleep.
+        if (_ensembleOn) ensemble.onBreak();
       }
       app.playNote(note);
       if (app.haptics) {

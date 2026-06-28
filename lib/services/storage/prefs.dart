@@ -50,6 +50,19 @@ class Prefs {
   bool get haptics => _p.getBool(K.kHaptics) ?? true;
   Future<void> setHaptics(bool v) => _p.setBool(K.kHaptics, v);
 
+  // ----- Accessibility & the awakening ensemble (default on) -----
+  bool get reduceMotion => _p.getBool(K.kReduceMotion) ?? false;
+  Future<void> setReduceMotion(bool v) => _p.setBool(K.kReduceMotion, v);
+
+  bool get colorblind => _p.getBool(K.kColorblind) ?? false;
+  Future<void> setColorblind(bool v) => _p.setBool(K.kColorblind, v);
+
+  bool get ensemble => _p.getBool(K.kEnsemble) ?? true;
+  Future<void> setEnsemble(bool v) => _p.setBool(K.kEnsemble, v);
+
+  bool get imbal => _p.getBool(K.kImbal) ?? true;
+  Future<void> setImbal(bool v) => _p.setBool(K.kImbal, v);
+
   bool get firstRun => _p.getBool(K.kFirstRun) ?? true;
   Future<void> setFirstRunDone() => _p.setBool(K.kFirstRun, false);
 

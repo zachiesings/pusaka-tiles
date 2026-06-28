@@ -13,6 +13,7 @@ class Song {
   final List<double> beats;    // duration of each note, in beats (same length)
   final double bpm;            // tempo
   final double speedScale;     // per-song difficulty multiplier
+  final double gonganBeats;    // length of one gong cycle (the ensemble's spine)
 
   const Song({
     required this.id,
@@ -22,6 +23,7 @@ class Song {
     required this.beats,
     this.bpm = 100,
     this.speedScale = 1.0,
+    this.gonganBeats = 16,
   });
 
   int get length => notes.length;
