@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../core/constants.dart';
 import '../game/chart.dart';
 import '../game/missions.dart';
+import '../game/motifs.dart';
 import '../game/progression.dart';
 import '../game/songs.dart';
 import '../game/tile_themes.dart';
@@ -16,12 +17,14 @@ class RunReward {
   final int newLevel;
   final int coinsGained;
   final List<String> missionsCompleted; // labels of missions finished this run
+  final String? motifUnlocked; // song-id of a Pusaka motif unlocked this run
   const RunReward({
     this.xpGained = 0,
     this.leveledUp = false,
     this.newLevel = 0,
     this.coinsGained = 0,
     this.missionsCompleted = const [],
+    this.motifUnlocked,
   });
 }
 
@@ -52,6 +55,8 @@ class AppState extends ChangeNotifier {
   int _coins;
   late Set<String> _unlockedThemes;
   late String _selectedTheme;
+  late Set<String> _unlockedMotifs;
+  late String _equippedMotif;
   late int _campaignUnlocked;
   late List<int> _stageStars;
 
@@ -76,6 +81,8 @@ class AppState extends ChangeNotifier {
     _unlockedThemes = _prefs.unlockedThemes.toSet()..add('klasik');
     _selectedTheme = _prefs.selectedTheme;
     TileTheme.active = TileThemeCatalog.byId(_selectedTheme).colors;
+    _unlockedMotifs = _prefs.unlockedMotifs.toSet();
+    _equippedMotif = _prefs.equippedMotif;
     _campaignUnlocked = _prefs.campaignUnlocked;
     _stageStars = _prefs.stageStars;
     _ensureMissionsToday();
@@ -153,6 +160,33 @@ class AppState extends ChangeNotifier {
     _prefs.setSelectedTheme(id);
     TileTheme.active = TileThemeCatalog.byId(id).colors;
     notifyListeners();
+  }
+
+  // ----- Collectible Pusaka motifs (the reward layer's long tail) -----
+  bool motifUnlocked(String songId) => _unlockedMotifs.contains(songId);
+  int get unlockedMotifCount => _unlockedMotifs.length;
+  int get totalMotifs => MotifCatalog.all.length;
+  String get equippedMotif => _equippedMotif;
+  bool isMotifEquipped(String songId) => _equippedMotif == songId;
+
+  /// The equipped motif (background "theme"), or null if none/cleared.
+  Motif? get activeMotif =>
+      _equippedMotif.isEmpty ? null : MotifCatalog.forSong(_equippedMotif);
+
+  /// Equip an unlocked motif as the background theme (toggles off if re-tapped).
+  void equipMotif(String songId) {
+    if (!_unlockedMotifs.contains(songId)) return;
+    _equippedMotif = _equippedMotif == songId ? '' : songId;
+    _prefs.setEquippedMotif(_equippedMotif);
+    notifyListeners();
+  }
+
+  /// Unlock [songId]'s motif if not already owned. Returns true if newly unlocked.
+  bool _unlockMotif(String songId) {
+    if (_unlockedMotifs.contains(songId)) return false;
+    _unlockedMotifs.add(songId);
+    _prefs.setUnlockedMotifs(_unlockedMotifs.toList());
+    return true;
   }
 
   String get instrument => audio.instrument;
@@ -478,6 +512,12 @@ class AppState extends ChangeNotifier {
 
     if (play == PlayMode.daily) _recordDaily(points);
 
+    // Pusaka motif: a clean clear (grade A+) unlocks this song's signature motif.
+    String? motifGot;
+    if (unlocksMotif(cleared: cleared, grade: grade) && _unlockMotif(songId)) {
+      motifGot = songId;
+    }
+
     _xp += xpGain;
     _prefs.setXp(_xp);
     if (coinsGain > 0) addCoins(coinsGain); // persists + notifies
@@ -489,6 +529,7 @@ class AppState extends ChangeNotifier {
       newLevel: afterLevel,
       coinsGained: coinsGain,
       missionsCompleted: done,
+      motifUnlocked: motifGot,
     );
   }
 }

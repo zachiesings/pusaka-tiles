@@ -5,6 +5,7 @@ import '../../game/tile_themes.dart';
 import '../../state/app_state.dart';
 import '../../widgets/batik.dart';
 import '../../widgets/soft_card.dart';
+import '../gallery/gallery_screen.dart';
 
 /// Buy & equip tile colour themes with coins earned by playing.
 class ShopScreen extends StatelessWidget {
@@ -73,6 +74,42 @@ class ShopScreen extends StatelessWidget {
                     ),
                   );
                 },
+              ),
+              // ---- Koleksi Pusaka (motif gallery) — earned by clearing songs ----
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const GalleryScreen())),
+                  child: SoftCard(
+                    glow: Palette.violet,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome_mosaic_rounded,
+                            color: Palette.violet, size: 28),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Koleksi Pusaka',
+                                  style: TextStyle(
+                                      color: Palette.cream,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800)),
+                              Text(
+                                  'Motif khas tiap lagu — buka dengan grade A '
+                                  '(${app.unlockedMotifCount}/${app.totalMotifs})',
+                                  style: TextStyle(
+                                      color: Palette.cream.withOpacity(0.6), fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: Palette.goldSoft),
+                      ],
+                    ),
+                  ),
+                ),
               ),
               ...TileThemeCatalog.all.map((t) {
                 final unlocked = app.isThemeUnlocked(t.id);

@@ -13,6 +13,7 @@ class TilesBoardPainter extends CustomPainter {
   final double flashT;
   final bool colorblind; // draw a per-lane shape so cues aren't colour-only
   final int imbalGlow; // # of upcoming tiles that form the active imbal "call"
+  final double tileDim; // Bayangan modifier: tile opacity multiplier (1 = none)
   final double repaint;
 
   TilesBoardPainter({
@@ -21,7 +22,8 @@ class TilesBoardPainter extends CustomPainter {
     this.flashT = 0,
     this.colorblind = false,
     this.imbalGlow = 0,
-  }) : repaint = engine.scroll + flashT + imbalGlow;
+    this.tileDim = 1.0,
+  }) : repaint = engine.scroll + flashT + imbalGlow + tileDim;
 
   /// A distinct shape per lane (circle/triangle/square/diamond) drawn on a tile
   /// when the colourblind-safe setting is on — shape + lane position carry the
@@ -113,12 +115,12 @@ class TilesBoardPainter extends CustomPainter {
       final rect = Rect.fromLTWH(t.activeColumn * laneW, top, laneW, h);
       final lane = TileTheme.active;
       final color = lane[t.activeColumn % lane.length];
-      BatikTile.paint(canvas, rect, color);
+      BatikTile.paint(canvas, rect, color, opacity: tileDim);
       // Chord: paint the second simultaneous lane so it reads (and cues the
       // optional second tap). Hold: a slim gold sustain cap down the tile.
       if (t.kind == NoteKind.chord && t.chordLane >= 0) {
         final r2 = Rect.fromLTWH(t.chordLane * laneW, top, laneW, h);
-        BatikTile.paint(canvas, r2, lane[t.chordLane % lane.length]);
+        BatikTile.paint(canvas, r2, lane[t.chordLane % lane.length], opacity: tileDim);
       } else if (t.kind == NoteKind.hold && h > pxPerBeat * 0.6) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
@@ -164,5 +166,6 @@ class TilesBoardPainter extends CustomPainter {
   bool shouldRepaint(covariant TilesBoardPainter old) =>
       old.repaint != repaint ||
       old.colorblind != colorblind ||
-      old.imbalGlow != imbalGlow;
+      old.imbalGlow != imbalGlow ||
+      old.tileDim != tileDim;
 }

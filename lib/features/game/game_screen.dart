@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
+import '../../game/motifs.dart';
 import '../../game/stage.dart';
 import '../../services/ads/ads_service.dart';
 import '../../state/app_state.dart';
@@ -177,7 +178,8 @@ class TilesGameScreen extends StatelessWidget {
                                     colorblind: app.colorblind,
                                     imbalGlow: gc.imbalActive
                                         ? (gc.imbalTotal - gc.imbalAnswered)
-                                        : 0)),
+                                        : 0,
+                                    tileDim: gc.tileDim)),
                             // Live batik germination — blooms with combo + ensemble.
                             if (gc.ensembleOn)
                               Positioned.fill(
@@ -610,6 +612,24 @@ class _GameOverOverlay extends StatelessWidget {
                 Text('✓ Misi: $m',
                     style: const TextStyle(
                         color: Palette.gold, fontSize: 11, fontWeight: FontWeight.w700)),
+            ],
+            if (reward.motifUnlocked != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BatikMotifView(
+                    color: MotifCatalog.forSong(reward.motifUnlocked!).color,
+                    petals: MotifCatalog.forSong(reward.motifUnlocked!).petals,
+                    rings: MotifCatalog.forSong(reward.motifUnlocked!).rings,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 6),
+                  Text('✦ Motif ${MotifCatalog.forSong(reward.motifUnlocked!).daerah} terbuka!',
+                      style: const TextStyle(
+                          color: Palette.goldLt, fontSize: 12, fontWeight: FontWeight.w900)),
+                ],
+              ),
             ],
             const SizedBox(height: 10),
             TweenAnimationBuilder<double>(

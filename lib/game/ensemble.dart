@@ -56,6 +56,7 @@ class EnsembleConfig {
   final double gonganBeats; // length of one gong cycle, in beats
   final double crossfadeBeats; // wake/sleep ramp length, in beats
   final String ensembleVoice; // asset folder for the pitched ensemble layers
+  final bool gongGanda; // Gong Ganda modifier: extra colotomic accents
 
   const EnsembleConfig({
     this.comboL2 = 8,
@@ -65,9 +66,10 @@ class EnsembleConfig {
     this.gonganBeats = 16,
     this.crossfadeBeats = 1.0,
     this.ensembleVoice = 'gamelan',
+    this.gongGanda = false,
   });
 
-  EnsembleConfig copyWith({double? gonganBeats}) => EnsembleConfig(
+  EnsembleConfig copyWith({double? gonganBeats, bool? gongGanda}) => EnsembleConfig(
         comboL2: comboL2,
         comboL3: comboL3,
         comboL4: comboL4,
@@ -75,6 +77,7 @@ class EnsembleConfig {
         gonganBeats: gonganBeats ?? this.gonganBeats,
         crossfadeBeats: crossfadeBeats,
         ensembleVoice: ensembleVoice,
+        gongGanda: gongGanda ?? this.gongGanda,
       );
 }
 
@@ -274,6 +277,13 @@ class EnsembleDirector {
     // layer (or the full stack) is awake; louder under the kendang layer.
     if (beatInCycle == 0 && gongG > 0.02) {
       hits.add(ColotomicHit('gong', 3, gongG * (driveG > 0.5 ? 1.0 : 0.8)));
+    }
+    // Gong Ganda: an extra gong accent on the mid-cycle downbeat — more driving.
+    if (cfg.gongGanda && gongG > 0.02) {
+      final half = (cfg.gonganBeats / 2).round();
+      if (half > 0 && beatInCycle == half) {
+        hits.add(ColotomicHit('gong', 7, gongG * 0.85)); // fifth — a consonant accent
+      }
     }
     if (gongG > 0.02) {
       // Kenong marks the quarter points (root); kempul the offbeats (fifth).

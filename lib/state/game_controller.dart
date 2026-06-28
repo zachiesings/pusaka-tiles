@@ -7,6 +7,7 @@ import '../game/engine/tiles_engine.dart';
 import '../game/ensemble.dart';
 import '../game/game_mode.dart';
 import '../game/imbal.dart';
+import '../game/modifiers.dart';
 import '../game/models/song.dart';
 import '../game/stage.dart';
 import 'app_state.dart';
@@ -39,6 +40,8 @@ class TilesGameController extends ChangeNotifier {
   List<int> _imbalCall = const []; // the armed figure's pitches (for the flourish)
   final List<int> _preEcho = <int>[]; // queued call pitches to arpeggiate (the "call")
   double _preEchoT = 0; // seconds until the next pre-echo note
+  double _preEchoVol = 0.5; // louder for the teaching call
+  double _preEchoGap = 0.13; // slower spacing for the teaching call (timing-only)
   int imbalEvent = 0; // bumped on a SUCCESSFUL imbal (UI flourish hook)
   // Peak ensemble reached this run — surfaced on the result card ("fullness").
   int peakLayers = 0; // 0..3 ensemble layers beyond the lead
@@ -93,9 +96,19 @@ class TilesGameController extends ChangeNotifier {
     this.play = PlayMode.endless,
     this.stage,
     this.dailySeed,
+    this.modifiers = const <SongModifier>{},
   }) {
     _begin();
   }
+
+  /// Per-song rhythm modifiers for THIS run only (Wave 6). Never persisted.
+  final Set<SongModifier> modifiers;
+  bool _bayanganOn = false; // Bayangan active (and not suppressed by reduced motion)
+
+  /// Tile-opacity dim for the Bayangan modifier (1.0 = no dim). Reads the live
+  /// gong phase; always 1.0 when Bayangan is off or reduced motion is on.
+  double get tileDim =>
+      (_bayanganOn && engine.started) ? bayanganTileOpacity(ensemble.gongPhase) : 1.0;
 
   void _begin() {
     // Campaign keeps its shipped feel: taps-only chart (legacy) at the stage's
@@ -113,7 +126,13 @@ class TilesGameController extends ChangeNotifier {
     final diffMul = legacy ? 1.0 : diffSpec.speedMul;
     final base = modeP.startSpeed * song.speedScale * spd * diffMul * pm.speedMul;
     final mx = modeP.maxSpeed * song.speedScale * spd * diffMul;
-    final step = (pm.ramp ? modeP.speedStep : 0.0) * spd * diffMul;
+    // Tempo Naik (modifier): an accelerando — boost a ramping mode, or introduce
+    // a gentle one where there is none.
+    var stepBase = pm.ramp ? modeP.speedStep : 0.0;
+    if (modifiers.contains(SongModifier.tempoNaik) && stepBase == 0.0) {
+      stepBase = modeP.speedStep * 0.5;
+    }
+    final step = stepBase * spd * diffMul * modifierSpeedStepMul(modifiers);
     chart = ChartGenerator.generate(
       song,
       difficulty,
@@ -159,9 +178,14 @@ class TilesGameController extends ChangeNotifier {
     // Wake the ensemble fresh for this run; honour the player's setting and the
     // song's own gong-cycle length (data-driven, defaults to 16 beats).
     _ensembleOn = app.ensemble;
-    ensemble.configure(
-        const EnsembleConfig().copyWith(gonganBeats: song.gonganBeats));
+    ensemble.configure(const EnsembleConfig().copyWith(
+      gonganBeats: song.gonganBeats,
+      gongGanda: modifiers.contains(SongModifier.gongGanda),
+    ));
     ensemble.reset();
+    // Bayangan dims tiles each gong — disabled under reduced motion (stays
+    // accessible, HARD CONSTRAINT).
+    _bayanganOn = modifiers.contains(SongModifier.bayangan) && !app.reduceMotion;
     // Imbal cadence/length by mode (spec §6): Santai gentler & rarer, Cepat
     // frequent with longer figures.
     _imbalOn = app.imbal && app.ensemble;
@@ -246,6 +270,10 @@ class TilesGameController extends ChangeNotifier {
             i++) {
           up.add(engine.rows[i].noteIndex);
         }
+        // The first imbal of a run teaches itself: state the call louder and
+        // slower (timing-only — never slows the engine, so no scroll/audio
+        // desync) so it's unmistakable before the player answers.
+        final teaching = imbal.teaching;
         final call = imbal.maybeArm(cycle, up);
         if (call != null) {
           _imbalCall = call;
@@ -253,13 +281,15 @@ class TilesGameController extends ChangeNotifier {
             ..clear()
             ..addAll(call);
           _preEchoT = 0;
+          _preEchoVol = teaching ? 0.72 : 0.5;
+          _preEchoGap = teaching ? 0.20 : 0.13;
         }
       }
       if (_preEcho.isNotEmpty) {
         _preEchoT -= dt;
         if (_preEchoT <= 0) {
-          app.playEnsembleNote(ensemble.cfg.ensembleVoice, _preEcho.removeAt(0), 0.5);
-          _preEchoT = 0.13; // ~130ms between call notes — reads as a figure
+          app.playEnsembleNote(ensemble.cfg.ensembleVoice, _preEcho.removeAt(0), _preEchoVol);
+          _preEchoT = _preEchoGap; // spacing reads as a figure (wider when teaching)
         }
       }
     }
@@ -337,7 +367,10 @@ class TilesGameController extends ChangeNotifier {
       // boost FEVER, and play an ornamented flourish (a missed figure just
       // continues, no punishment).
       if (_imbalOn && imbal.active) {
-        final res = imbal.onAnswer(clean: tier >= Judge.kGood);
+        // Teaching the first imbal: widen the answer window — any hit on a call
+        // tile counts (a forgiving lesson). After that, clean means Good+.
+        final cleanTier = imbal.teaching ? Judge.kBad : Judge.kGood;
+        final res = imbal.onAnswer(clean: tier >= cleanTier);
         if (res != null && res.success) {
           ensemble.promote();
           feverMeter += 0.4;

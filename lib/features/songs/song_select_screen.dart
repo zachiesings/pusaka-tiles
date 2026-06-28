@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../game/chart.dart';
+import '../../game/modifiers.dart';
 import '../../game/models/song.dart';
 import '../../game/progression.dart';
 import '../../game/songs.dart';
@@ -40,6 +41,7 @@ const _diffColor = {_Diff.mudah: Palette.teal, _Diff.sedang: Palette.gold, _Diff
 class _SongSelectScreenState extends State<SongSelectScreen> {
   PlayMode _playMode = PlayMode.endless;
   Difficulty _difficulty = Difficulty.normal;
+  final Set<SongModifier> _mods = <SongModifier>{}; // per-run challenge toggles
   int _tab = 0; // 0=Semua, 1=Mudah, 2=Sedang, 3=Sulit
   static const _tabs = ['Semua', 'Mudah', 'Sedang', 'Sulit'];
 
@@ -58,6 +60,8 @@ class _SongSelectScreenState extends State<SongSelectScreen> {
             play: play ?? _playMode,
             difficulty: difficulty ?? _difficulty,
             dailySeed: dailySeed,
+            // Daily is a fair, fixed challenge — no modifiers on it.
+            modifiers: dailySeed != null ? const <SongModifier>{} : _mods,
           ),
           child: const TilesGameScreen(),
         ),
@@ -131,6 +135,20 @@ class _SongSelectScreenState extends State<SongSelectScreen> {
                     selected: sel,
                     color: Palette.pink,
                     onTap: () => setState(() => _difficulty = d),
+                  );
+                }).toList(),
+              ),
+              _PickerRow(
+                label: 'Tantangan',
+                children: SongModifier.values.map((m) {
+                  final sel = _mods.contains(m);
+                  return _Chip(
+                    text: kModifiers[m]!.label,
+                    selected: sel,
+                    color: Palette.violet,
+                    onTap: () => setState(() {
+                      if (!_mods.add(m)) _mods.remove(m); // toggle
+                    }),
                   );
                 }).toList(),
               ),

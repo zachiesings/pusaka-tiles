@@ -12,15 +12,16 @@ class BatikMotifPainter extends CustomPainter {
   final Color color;
   final double opacity; // master alpha
   final double phase; // 0..1 gentle counter-rotation between rings
+  final int petals; // petals per ring — varies the motif's "shape"
+  final int rings; // concentric rings — varies the motif's density
   BatikMotifPainter({
     required this.bloom,
     required this.color,
     this.opacity = 1,
     this.phase = 0,
+    this.petals = 8,
+    this.rings = 3,
   });
-
-  static const int _petals = 8;
-  static const int _rings = 3;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -28,17 +29,19 @@ class BatikMotifPainter extends CustomPainter {
     if (b <= 0.01 || opacity <= 0.01) return;
     final c = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) * 0.5;
+    final nRings = rings.clamp(1, 5);
+    final nPetals = petals.clamp(3, 16);
     final stroke = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = (radius * 0.02).clamp(1.0, 4.0);
 
-    for (var ring = 0; ring < _rings; ring++) {
-      final ringBloom = (b * _rings - ring).clamp(0.0, 1.0);
+    for (var ring = 0; ring < nRings; ring++) {
+      final ringBloom = (b * nRings - ring).clamp(0.0, 1.0);
       if (ringBloom <= 0) break;
-      final rr = radius * (0.22 + ring * 0.27) * ringBloom;
+      final rr = radius * (0.2 + ring * (0.6 / nRings)) * ringBloom;
       final spin = phase * 2 * math.pi * 0.06 * (ring.isEven ? 1 : -1);
-      for (var i = 0; i < _petals; i++) {
-        final ang = i / _petals * 2 * math.pi + spin;
+      for (var i = 0; i < nPetals; i++) {
+        final ang = i / nPetals * 2 * math.pi + spin;
         final px = c.dx + math.cos(ang) * rr;
         final py = c.dy + math.sin(ang) * rr;
         final petal = Rect.fromCenter(
@@ -63,18 +66,29 @@ class BatikMotifPainter extends CustomPainter {
       o.bloom != bloom || o.color != color || o.opacity != opacity || o.phase != phase;
 }
 
-/// A static grown motif for the result card / shop preview.
+/// A static grown motif for the result card / gallery / shop preview.
 class BatikMotifView extends StatelessWidget {
   final double bloom;
   final Color color;
   final double size;
-  const BatikMotifView({super.key, this.bloom = 1, required this.color, this.size = 72});
+  final int petals;
+  final int rings;
+  const BatikMotifView({
+    super.key,
+    this.bloom = 1,
+    required this.color,
+    this.size = 72,
+    this.petals = 8,
+    this.rings = 3,
+  });
 
   @override
   Widget build(BuildContext context) => SizedBox(
         width: size,
         height: size,
-        child: CustomPaint(painter: BatikMotifPainter(bloom: bloom, color: color)),
+        child: CustomPaint(
+            painter: BatikMotifPainter(
+                bloom: bloom, color: color, petals: petals, rings: rings)),
       );
 }
 
